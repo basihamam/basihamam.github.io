@@ -1,0 +1,848 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Kelime Maçı – İngilizce Futbol Şut Oyunu (Copy)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bungee&family=Nunito:wght@600;800;900&display=swap" rel="stylesheet">
+<style>
+:root {
+  box-sizing: border-box;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  --bg: #e9f3e4;
+  --panel: #ffffff;
+  --panel-2: #f3f8ef;
+  --text: #16301d;
+  --muted: #55705c;
+  --line: #cfe0c7;
+  --accent: #1f9d55;
+  --accent-ink: #ffffff;
+  --gold: #f5b700;
+  --bad: #d64545;
+  --good: #1f9d55;
+  --shadow: 0 6px 0 rgba(22,48,29,.12);
+  --display: "Bungee", "Impact", "Arial Black", sans-serif;
+  --body: "Nunito", "Segoe UI", system-ui, -apple-system, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0d1f14;
+    --panel: #14301f;
+    --panel-2: #1a3b27;
+    --text: #eaf6ea;
+    --muted: #9dbba4;
+    --line: #2a5138;
+    --accent: #3ddc84;
+    --accent-ink: #062812;
+    --gold: #ffcf3a;
+    --bad: #ff6b6b;
+    --good: #3ddc84;
+    --shadow: 0 6px 0 rgba(0,0,0,.35);
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0d1f14;
+  --panel: #14301f;
+  --panel-2: #1a3b27;
+  --text: #eaf6ea;
+  --muted: #9dbba4;
+  --line: #2a5138;
+  --accent: #3ddc84;
+  --accent-ink: #062812;
+  --gold: #ffcf3a;
+  --bad: #ff6b6b;
+  --good: #3ddc84;
+  --shadow: 0 6px 0 rgba(0,0,0,.35);
+}
+* { box-sizing: border-box; }
+html { scroll-padding-top: env(safe-area-inset-top, 0px); }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--body);
+  font-weight: 700;
+  min-height: 100vh;
+}
+.app { max-width: 760px; margin: 0 auto; padding: 14px 14px 28px; }
+
+.top { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+.brand { font-family: var(--display); font-size: clamp(18px, 4.6vw, 26px); letter-spacing: .5px; line-height: 1; }
+.stats { display: flex; gap: 8px; }
+.chip {
+  background: var(--panel); border: 2px solid var(--line); border-radius: 999px;
+  padding: 6px 12px; font-weight: 900; font-size: 14px; white-space: nowrap;
+}
+.chip b { font-family: var(--display); font-weight: 400; font-size: 16px; color: var(--accent); }
+
+.timer { height: 12px; border-radius: 999px; background: var(--panel-2); border: 2px solid var(--line); overflow: hidden; margin-bottom: 10px; opacity: .25; transition: opacity .2s; }
+.timer.on { opacity: 1; }
+.timer i { display: block; height: 100%; width: 100%; background: var(--accent); border-radius: 999px; transform-origin: left; }
+.timer.low i { background: var(--bad); }
+
+.stage { position: relative; border-radius: 18px; overflow: hidden; border: 3px solid var(--text); box-shadow: var(--shadow); background: #2e9b4a; }
+canvas { display: block; width: 100%; height: auto; touch-action: none; }
+.overlay { position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none; }
+.banner {
+  font-family: var(--display); text-align: center; line-height: 1; color: #fff;
+  font-size: clamp(44px, 14vw, 104px); letter-spacing: 2px;
+  -webkit-text-stroke: 3px #0d3b1c; paint-order: stroke fill;
+  text-shadow: 0 6px 0 #0d3b1c, 0 0 30px rgba(255,220,60,.9);
+  animation: pop 1.9s cubic-bezier(.2,1.4,.4,1) both;
+}
+.banner.gold { color: var(--gold); }
+.banner.small { font-size: clamp(30px, 9vw, 64px); }
+.banner.miss { color: #ffd0d0; text-shadow: 0 6px 0 #0d3b1c; }
+@keyframes pop {
+  0% { transform: scale(.2) rotate(-12deg); opacity: 0; }
+  18% { transform: scale(1.18) rotate(4deg); opacity: 1; }
+  30% { transform: scale(1) rotate(-2deg); }
+  80% { transform: scale(1.04) rotate(1deg); opacity: 1; }
+  100% { transform: scale(1.1); opacity: 0; }
+}
+
+.panel { margin-top: 12px; background: var(--panel); border: 2px solid var(--line); border-radius: 18px; padding: 16px; }
+.qhead { display: flex; align-items: center; gap: 14px; margin-bottom: 14px; }
+.qemoji { font-size: clamp(44px, 12vw, 64px); line-height: 1; background: var(--panel-2); border-radius: 16px; padding: 8px 12px; min-width: 84px; text-align: center; }
+.qen { font-size: clamp(22px, 5.8vw, 32px); font-weight: 900; line-height: 1.15; }
+.qhint { margin-top: 4px; font-size: 14px; color: var(--muted); font-weight: 700; font-style: italic; }
+.opts { display: grid; gap: 10px; }
+.opt {
+  font: inherit; font-weight: 800; font-size: 18px; text-align: left; color: var(--text);
+  background: var(--panel-2); border: 2px solid var(--line); border-radius: 14px;
+  padding: 14px 14px; cursor: pointer; display: flex; align-items: center; gap: 12px;
+  transition: transform .08s, border-color .12s, background .12s;
+}
+.opt:hover:not(:disabled) { border-color: var(--accent); transform: translateY(-2px); }
+.opt:focus-visible, .btn:focus-visible, .ctl:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
+.opt kbd { font-family: var(--display); font-size: 14px; background: var(--panel); border: 2px solid var(--line); border-radius: 8px; padding: 3px 9px; color: var(--muted); }
+.opt.right { background: var(--good); border-color: var(--good); color: var(--accent-ink); }
+.opt.right kbd { color: var(--text); }
+.opt.wrong { background: var(--bad); border-color: var(--bad); color: #fff; }
+.opt:disabled { cursor: default; }
+.msg { margin-top: 12px; font-weight: 900; font-size: 16px; min-height: 22px; }
+.msg.bad { color: var(--bad); }
+.msg.good { color: var(--good); }
+
+.btn {
+  font-family: var(--display); font-size: 20px; letter-spacing: .5px; cursor: pointer;
+  background: var(--accent); color: var(--accent-ink); border: 0; border-radius: 14px;
+  padding: 14px 22px; box-shadow: 0 5px 0 rgba(0,0,0,.25); transition: transform .08s, box-shadow .08s;
+}
+.btn:active { transform: translateY(4px); box-shadow: 0 1px 0 rgba(0,0,0,.25); }
+.center { text-align: center; }
+.title { font-family: var(--display); font-size: clamp(24px, 6.5vw, 36px); margin: 0 0 8px; line-height: 1.05; }
+.rules { list-style: none; padding: 0; margin: 12px auto 16px; display: grid; gap: 8px; max-width: 480px; text-align: left; font-size: 16px; }
+.rules li { display: flex; gap: 10px; align-items: flex-start; }
+.rules span:first-child { font-size: 20px; }
+.sub { color: var(--muted); margin: 0; font-size: 16px; }
+
+.aim-wrap { text-align: center; }
+.aim-title { font-family: var(--display); font-size: clamp(20px, 5.5vw, 28px); margin: 0 0 6px; color: var(--accent); }
+.controls { display: grid; grid-template-columns: 1fr 1.4fr 1fr; gap: 10px; margin-top: 14px; }
+.ctl {
+  font-family: var(--display); font-size: 22px; padding: 18px 8px; border-radius: 14px; cursor: pointer;
+  background: var(--panel-2); border: 2px solid var(--line); color: var(--text); user-select: none; -webkit-user-select: none; touch-action: none;
+}
+.ctl.shoot { background: var(--gold); border-color: var(--gold); color: #3a2a00; }
+.ctl.held { transform: translateY(3px); border-color: var(--accent); }
+.big { font-family: var(--display); font-size: clamp(44px, 12vw, 72px); color: var(--accent); line-height: 1; margin: 6px 0; }
+.grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 14px 0; }
+.grid3 div { background: var(--panel-2); border-radius: 12px; padding: 10px 4px; }
+.grid3 b { display: block; font-family: var(--display); font-weight: 400; font-size: 24px; }
+.grid3 small { color: var(--muted); font-weight: 800; }
+.theme { font: inherit; cursor: pointer; background: var(--panel); border: 2px solid var(--line); color: var(--text); border-radius: 999px; padding: 6px 10px; font-size: 16px; }
+
+.top { flex-wrap: wrap; }
+.stats { flex-wrap: wrap; justify-content: flex-end; align-items: center; }
+.topics { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin: 14px 0 6px; }
+.topic {
+  font: inherit; font-weight: 800; font-size: 16px; cursor: pointer; color: var(--text);
+  background: var(--panel-2); border: 2px solid var(--line); border-radius: 999px; padding: 9px 16px;
+  transition: transform .08s, background .12s, border-color .12s;
+}
+.topic:hover { border-color: var(--accent); }
+.topic[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.topic:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
+.btn:disabled { opacity: .45; cursor: not-allowed; box-shadow: 0 5px 0 rgba(0,0,0,.15); }
+.btn.alt { background: var(--panel-2); color: var(--text); border: 2px solid var(--line); box-shadow: none; font-size: 16px; }
+.btnrow { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 16px; }
+.theme.arm { background: var(--bad); border-color: var(--bad); color: #fff; }
+@media (prefers-reduced-motion: reduce) {
+  .banner { animation-duration: .01s; animation-delay: 0s; opacity: 1; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="top">
+    <div class="brand">⚽ Kelime Maçı</div>
+    <div class="stats">
+      <div class="chip">Puan <b id="sScore">0</b></div>
+      <div class="chip">Soru <b id="sQ">0/27</b></div>
+      <button class="theme" id="endBtn" hidden>Bitir</button>
+      <button class="theme" id="themeBtn" aria-label="Tema değiştir">🌓</button>
+    </div>
+  </div>
+  <div class="timer" id="timer"><i id="timerFill"></i></div>
+  <div class="stage">
+    <canvas id="c" width="800" height="480" aria-label="Futbol sahası"></canvas>
+    <div class="overlay" id="overlay"></div>
+  </div>
+  <section class="panel" id="panel"></section>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  /* ---------- Kelime havuzu ---------- */
+  var WORDS = [
+    { g: "like", en: "I love drawing pictures.", tr: "Resim çizmeyi çok severim.", e: "🎨" },
+    { g: "like", en: "I prefer drawing pictures.", tr: "Resim çizmeyi tercih ederim.", e: "🖌️" },
+    { g: "like", en: "I like drawing pictures.", tr: "Resim çizmeyi severim.", e: "🖼️" },
+    { g: "like", en: "I dislike playing basketball.", tr: "Basketbol oynamayı sevmem.", e: "🏀❌" },
+    { g: "like", en: "I don't like playing basketball.", tr: "Basketbol oynamayı sevmem.", e: "🏀👎" },
+    { g: "like", en: "I hate playing basketball.", tr: "Basketbol oynamaktan nefret ederim.", e: "🏀😡" },
+    { g: "job", en: "Teacher", tr: "Öğretmen", e: "👩‍🏫", h: "I teach English to my students.", ht: "Öğrencilerime İngilizce öğretirim." },
+    { g: "job", en: "Police Officer", tr: "Polis Memuru", e: "👮", h: "I help people and keep the city safe.", ht: "İnsanlara yardım eder ve şehri güvenli tutarım." },
+    { g: "job", en: "Doctor", tr: "Doktor", e: "👩‍⚕️", h: "I help sick people and check patients.", ht: "Hasta insanlara yardım eder ve kontrol ederim." },
+    { g: "job", en: "Farmer", tr: "Çiftçi", e: "👨‍🌾", h: "I grow fruit and vegetables.", ht: "Meyveleri ve sebzeleri yetiştiririm." },
+    { g: "job", en: "Singer", tr: "Şarkıcı", e: "👨‍🎤", h: "I sing songs with my band.", ht: "Grubumla birlikte şarkılar söylerim." },
+    { g: "job", en: "Dentist", tr: "Diş hekimi", e: "🦷", h: "I pull out the unhealthy teeth.", ht: "Sağlıksız dişleri çekerim." },
+    { g: "jobsent", en: "I teach English to my students.", tr: "Öğrencilerime İngilizce öğretirim.", e: "👩‍🏫" },
+    { g: "jobsent", en: "I help people and keep the city safe.", tr: "İnsanlara yardım eder ve şehri güvenli tutarım.", e: "👮" },
+    { g: "jobsent", en: "I help sick people and check patients.", tr: "Hasta insanlara yardım eder ve kontrol ederim.", e: "👩‍⚕️" },
+    { g: "jobsent", en: "I grow fruit and vegetables.", tr: "Meyveleri ve sebzeleri yetiştiririm.", e: "👨‍🌾" },
+    { g: "jobsent", en: "I sing songs with my band.", tr: "Grubumla birlikte şarkılar söylerim.", e: "👨‍🎤" },
+    { g: "jobsent", en: "I pull out the unhealthy teeth.", tr: "Sağlıksız dişleri çekerim.", e: "🦷" },
+    { g: "look", en: "Short", tr: "Kısa", e: "📏" },
+    { g: "look", en: "Tall", tr: "Uzun", e: "🦒" },
+    { g: "look", en: "Thin", tr: "Zayıf", e: "🏃" },
+    { g: "look", en: "Fat", tr: "Şişman", e: "🍔" },
+    { g: "look", en: "Long hair", tr: "Uzun saç", e: "💇‍♀️" },
+    { g: "look", en: "Short hair", tr: "Kısa saç", e: "💇‍♂️" },
+    { g: "look", en: "Wavy hair", tr: "Dalgalı saç", e: "👩‍🦱" },
+    { g: "look", en: "Brown eyes", tr: "Kahverengi göz", e: "👁️🤎" },
+    { g: "look", en: "Blue eyes", tr: "Mavi göz", e: "👁️💙" },
+    { g: "place", en: "Bakery", tr: "Fırın", e: "🥐", h: "I go to bakery to buy fresh bread.", ht: "Ben taze ekmek satın almak için fırına giderim." },
+    { g: "place", en: "Park", tr: "Park", e: "🌳", h: "I ride my bike and walk my dog in the park.", ht: "Parkta bisikletimi sürerim ve köpeğimi yürütürüm." },
+    { g: "place", en: "Cinema", tr: "Sinema", e: "🎬", h: "I watch films in the cinema.", ht: "Sinemada film izlerim." },
+    { g: "place", en: "Museum", tr: "Müze", e: "🏛️", h: "I look at ancient objects in the museum.", ht: "Müzede antika nesnelere bakarım." },
+    { g: "place", en: "Chemist's", tr: "Eczane", e: "💊", h: "I buy medicine in the chemist's.", ht: "Eczanede ilaç satın alırım." },
+    { g: "place", en: "Greengrocer's", tr: "Manav", e: "🥦", h: "I buy fruit and vegetables in the greengrocer's.", ht: "Manavda meyve ve sebze satın alırım." },
+    { g: "placesent", en: "I go to bakery to buy fresh bread.", tr: "Ben taze ekmek satın almak için fırına giderim.", e: "🍞" },
+    { g: "placesent", en: "I ride my bike and walk my dog in the park.", tr: "Parkta bisikletimi sürerim ve köpeğimi yürütürüm.", e: "🚴‍♂️🐕" },
+    { g: "placesent", en: "I watch films in the cinema.", tr: "Sinemada film izlerim.", e: "🎥" },
+    { g: "placesent", en: "I look at ancient objects in the museum.", tr: "Müzede antika nesnelere bakarım.", e: "🏺" },
+    { g: "placesent", en: "I buy medicine in the chemist's.", tr: "Eczanede ilaç satın alırım.", e: "💊" },
+    { g: "placesent", en: "I buy fruit and vegetables in the greengrocer's.", tr: "Manavda meyve ve sebze satın alırım.", e: "🍎🥕" },
+    { g: "food", en: "Salad", tr: "Salata", e: "🥗" },
+    { g: "food", en: "Yoghurt", tr: "Yoğurt", e: "🥣" },
+    { g: "food", en: "Broccoli", tr: "Brokoli", e: "🥦" },
+    { g: "food", en: "Chips", tr: "Cips", e: "🍟" },
+    { g: "food", en: "Noodle", tr: "Erişte", e: "🍜" },
+    { g: "food", en: "Sweet", tr: "Şekerleme", e: "🍬" },
+    { g: "food", en: "Grilled Fish", tr: "Izgara Balık", e: "🐟" },
+    { g: "food", en: "Eggs", tr: "Yumurta", e: "🥚" },
+    { g: "food", en: "Nuts", tr: "Çerez", e: "🥜" },
+    { g: "food", en: "Hamburger", tr: "Hamburger", e: "🍔" },
+    { g: "food", en: "Chocolate", tr: "Çikolata", e: "🍫" },
+    { g: "food", en: "Sausages", tr: "Sosis", e: "🌭" },
+    { g: "food", en: "Spinach", tr: "Ispanak", e: "🥬" },
+    { g: "food", en: "Ice cream", tr: "Dondurma", e: "🍦" }
+  ];
+  var TOTAL = WORDS.length, QUESTION_TIME = 10, GOAL_POINTS = 5;
+  var TOPICS = [
+    { id: "like", label: "👍 Severim / sevmem", gs: ["like"] },
+    { id: "job", label: "👩‍⚕️ Meslekler", gs: ["job", "jobsent"] },
+    { id: "look", label: "👁️ Dış görünüş", gs: ["look"] },
+    { id: "place", label: "🏛️ Mekanlar", gs: ["place", "placesent"] },
+    { id: "food", label: "🍔 Yiyecekler", gs: ["food"] }
+  ];
+  var selected = { like: true, job: true, look: true, place: true, food: true };
+  var answered = 0;
+  function poolFor() {
+    var gs = [];
+    TOPICS.forEach(function (t) { if (selected[t.id]) gs = gs.concat(t.gs); });
+    return WORDS.filter(function (w) { return gs.indexOf(w.g) >= 0; });
+  }
+
+  function shuffle(a) {
+    a = a.slice();
+    for (var i = a.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var t = a[i]; a[i] = a[j]; a[j] = t;
+    }
+    return a;
+  }
+
+  /* ---------- Ses (Web Audio API) ---------- */
+  var AC = null;
+  function ac() {
+    if (!AC) {
+      try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { AC = null; }
+    }
+    if (AC && AC.state === "suspended") { AC.resume(); }
+    return AC;
+  }
+  function tone(freq, dur, type, vol, delay, slideTo) {
+    var a = ac(); if (!a) return;
+    var t = a.currentTime + (delay || 0);
+    var o = a.createOscillator(), g = a.createGain();
+    o.type = type || "sine";
+    o.frequency.setValueAtTime(freq, t);
+    if (slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, t + dur);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(vol || 0.15, t + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g); g.connect(a.destination);
+    o.start(t); o.stop(t + dur + 0.05);
+  }
+  function noise(dur, vol, freq, attack, delay) {
+    var a = ac(); if (!a) return;
+    var t = a.currentTime + (delay || 0);
+    var len = Math.floor(a.sampleRate * dur);
+    var buf = a.createBuffer(1, len, a.sampleRate);
+    var d = buf.getChannelData(0);
+    for (var i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+    var s = a.createBufferSource(); s.buffer = buf;
+    var f = a.createBiquadFilter(); f.type = "bandpass"; f.frequency.value = freq; f.Q.value = 0.6;
+    var g = a.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(vol, t + (attack || 0.05));
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    s.connect(f); f.connect(g); g.connect(a.destination);
+    s.start(t); s.stop(t + dur);
+  }
+  var sfx = {
+    right: function () { tone(660, .12, "triangle", .18); tone(990, .18, "triangle", .18, .1); },
+    wrong: function () { tone(200, .3, "sawtooth", .14, 0, 110); },
+    kick: function () { noise(.14, .5, 220, .01); tone(140, .12, "sine", .3, 0, 60); },
+    save: function () { noise(.18, .4, 500, .01); tone(120, .2, "square", .1, 0, 70); },
+    miss: function () { tone(400, .35, "sine", .12, 0, 180); noise(.5, .12, 1200, .1); },
+    goal: function () {
+      noise(2.4, .5, 900, .35);
+      noise(2.4, .25, 2200, .5);
+      var notes = [523.25, 659.25, 783.99, 1046.5, 783.99, 1046.5, 1318.5];
+      notes.forEach(function (n, i) { tone(n, .28, "square", .09, i * .12); });
+      tone(2300, .6, "sine", .06, .05, 2800);
+    },
+    end: function () { [523.25, 659.25, 783.99, 1046.5].forEach(function (n, i) { tone(n, .3, "triangle", .15, i * .14); }); }
+  };
+
+  /* ---------- Oyun durumu ---------- */
+  var canvas = document.getElementById("c");
+  var ctx = canvas.getContext("2d");
+  var W = 800, H = 480;
+  var GOAL = { l: 250, r: 550, t: 78, b: 212 };
+  var BALL0 = { x: 400, y: 432 };
+  var TARGET_Y = 150;
+
+  var state = "start"; // start | question | feedback | aim | flight | result | end
+  var stateTimer = 0, afterFeedback = null;
+  var score = 0, goals = 0, correctCount = 0, qNum = 0;
+  var deck = [], q = null, options = [], timeLeft = QUESTION_TIME;
+  var time = 0;
+  var aim = 0, held = { left: false, right: false };
+  var kx = 400, keeperTarget = 400, diving = false;
+  var flightP = 0, ball = { x: BALL0.x, y: BALL0.y, s: 1, vx: 0, vy: 0, free: false };
+  var confetti = [];
+  var lastResult = "";
+
+  var elScore = document.getElementById("sScore");
+  var elQ = document.getElementById("sQ");
+  var elPanel = document.getElementById("panel");
+  var elTimer = document.getElementById("timer");
+  var elFill = document.getElementById("timerFill");
+  var elOverlay = document.getElementById("overlay");
+
+  function updateStats() {
+    elScore.textContent = score;
+    elQ.textContent = qNum + "/" + TOTAL;
+  }
+
+  function esc(s) { return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+
+  function buildOptions(item) {
+    var pool = WORDS.filter(function (w) { return w.g === item.g && w.tr !== item.tr; });
+    var seen = {}, wrong = [];
+    shuffle(pool).forEach(function (w) {
+      if (!seen[w.tr] && wrong.length < 2) { seen[w.tr] = 1; wrong.push(w.tr); }
+    });
+    return shuffle([item.tr].concat(wrong));
+  }
+
+  /* ---------- Ekranlar ---------- */
+  function showStart() {
+    state = "start";
+    setEndBtn(false);
+    elTimer.classList.remove("on", "low");
+    elPanel.innerHTML =
+      '<div class="center">' +
+      '<h1 class="title">Kelimeyi bil, golü at!</h1>' +
+      '<p class="sub">Çalışmak istediğin konuları seç. Seçtiğin konulardaki her soru bir kez sorulur.</p>' +
+      '<div class="topics" id="topics"></div>' +
+      '<ul class="rules">' +
+      '<li><span>⏱️</span><span>Her soru için 10 saniyen var.</span></li>' +
+      '<li><span>✅</span><span>Doğru cevap verirsen şut hakkı kazanırsın. Yanlışta yeni soruya geçilir.</span></li>' +
+      '<li><span>⌨️</span><span>Sol ve Sağ ok tuşlarıyla nişan al, Boşluk tuşuyla şutu çek.</span></li>' +
+      '<li><span>🥅</span><span>Kaleci kurtarabilir, top dışarı da çıkabilir. Gol olursa +5 puan!</span></li>' +
+      '</ul>' +
+      '<button class="btn" id="startBtn">Maçı başlat</button>' +
+      '</div>';
+    document.getElementById("startBtn").addEventListener("click", function () { ac(); startGame(); });
+    renderTopics();
+  }
+
+  function renderTopics() {
+    var box = document.getElementById("topics");
+    if (!box) return;
+    box.innerHTML = "";
+    TOPICS.forEach(function (t) {
+      var n = WORDS.filter(function (w) { return t.gs.indexOf(w.g) >= 0; }).length;
+      var b = document.createElement("button");
+      b.className = "topic";
+      b.setAttribute("aria-pressed", selected[t.id] ? "true" : "false");
+      b.textContent = t.label + " (" + n + ")";
+      b.addEventListener("click", function () { selected[t.id] = !selected[t.id]; renderTopics(); });
+      box.appendChild(b);
+    });
+    var cnt = poolFor().length;
+    var sb = document.getElementById("startBtn");
+    sb.disabled = cnt === 0;
+    sb.textContent = cnt === 0 ? "Bir konu seç" : "Maçı başlat (" + cnt + " soru)";
+  }
+
+  function startGame() {
+    score = 0; goals = 0; correctCount = 0; qNum = 0;
+    deck = shuffle(poolFor());
+    TOTAL = deck.length;
+    answered = 0;
+    setEndBtn(true);
+    confetti = [];
+    updateStats();
+    nextQuestion();
+  }
+
+  function nextQuestion() {
+    if (qNum >= TOTAL) { showEnd(); return; }
+    q = deck[qNum];
+    qNum++;
+    options = buildOptions(q);
+    timeLeft = QUESTION_TIME;
+    diving = false;
+    ball = { x: BALL0.x, y: BALL0.y, s: 1, vx: 0, vy: 0, free: false };
+    aim = 0;
+    state = "question";
+    updateStats();
+    renderQuestion();
+  }
+
+  function renderQuestion() {
+    elTimer.classList.add("on");
+    elTimer.classList.remove("low");
+    var html =
+      '<div class="qhead"><div class="qemoji">' + q.e + '</div><div>' +
+      '<div class="qen">' + esc(q.en) + '</div>' +
+      (q.h ? '<div class="qhint" id="qhint">' + esc(q.h) + '</div>' : '') +
+      '</div></div><div class="opts">';
+    options.forEach(function (o, i) {
+      html += '<button class="opt" data-i="' + i + '"><kbd>' + (i + 1) + '</kbd><span>' + esc(o) + '</span></button>';
+    });
+    html += '</div><div class="msg" id="msg"></div>';
+    elPanel.innerHTML = html;
+    Array.prototype.forEach.call(elPanel.querySelectorAll(".opt"), function (b) {
+      b.addEventListener("click", function () { answer(parseInt(b.getAttribute("data-i"), 10)); });
+    });
+  }
+
+  function answer(i) {
+    if (state !== "question") return;
+    ac();
+    state = "feedback";
+    var btns = elPanel.querySelectorAll(".opt");
+    var msg = document.getElementById("msg");
+    var ok = i >= 0 && options[i] === q.tr;
+    answered++;
+    var qh = document.getElementById("qhint");
+    if (qh && q.ht) qh.textContent = q.h + " (" + q.ht + ")";
+    Array.prototype.forEach.call(btns, function (b, idx) {
+      b.disabled = true;
+      if (options[idx] === q.tr) b.classList.add("right");
+      else if (idx === i) b.classList.add("wrong");
+    });
+    if (ok) {
+      correctCount++;
+      sfx.right();
+      msg.className = "msg good";
+      msg.textContent = "Doğru! Şut hakkı kazandın 🎯";
+      stateTimer = 0.9;
+      afterFeedback = startAim;
+    } else {
+      sfx.wrong();
+      msg.className = "msg bad";
+      msg.textContent = (i < 0 ? "Süre doldu! " : "Yanlış! ") + "Doğru cevap: " + q.tr;
+      stateTimer = 1.9;
+      afterFeedback = nextQuestion;
+    }
+  }
+
+  function startAim() {
+    state = "aim";
+    elTimer.classList.remove("on", "low");
+    elPanel.innerHTML =
+      '<div class="aim-wrap"><h2 class="aim-title">Şut zamanı!</h2>' +
+      '<p class="sub">◀ ▶ ok tuşlarıyla nişan al, <b>Boşluk</b> ile şutu çek.</p>' +
+      '<div class="controls">' +
+      '<button class="ctl" id="bL" aria-label="Sola nişan al">◀</button>' +
+      '<button class="ctl shoot" id="bS">ŞUT!</button>' +
+      '<button class="ctl" id="bR" aria-label="Sağa nişan al">▶</button>' +
+      '</div></div>';
+    bindHold(document.getElementById("bL"), "left");
+    bindHold(document.getElementById("bR"), "right");
+    document.getElementById("bS").addEventListener("pointerdown", function (e) { e.preventDefault(); shoot(); });
+  }
+
+  function bindHold(el, dir) {
+    function on(e) { e.preventDefault(); held[dir] = true; el.classList.add("held"); }
+    function off() { held[dir] = false; el.classList.remove("held"); }
+    el.addEventListener("pointerdown", on);
+    el.addEventListener("pointerup", off);
+    el.addEventListener("pointerleave", off);
+    el.addEventListener("pointercancel", off);
+  }
+
+  function shoot() {
+    if (state !== "aim") return;
+    ac();
+    state = "flight";
+    flightP = 0;
+    held.left = held.right = false;
+    sfx.kick();
+    // Kaleci bazen topu okuyup o yöne atlar
+    if (Math.random() < 0.42) {
+      diving = true;
+      keeperTarget = Math.max(GOAL.l + 22, Math.min(GOAL.r - 22, BALL0.x + aim));
+    }
+    elPanel.innerHTML = '<div class="center"><h2 class="aim-title">Top havada…</h2></div>';
+  }
+
+  function resolveShot() {
+    var bx = BALL0.x + aim;
+    var out = Math.abs(aim) > 146;
+    var dist = Math.abs(bx - kx);
+    state = "result";
+    stateTimer = 2.2;
+    ball.free = true;
+    if (out) {
+      lastResult = "out";
+      ball.vx = (aim > 0 ? 1 : -1) * 130; ball.vy = -170;
+      sfx.miss();
+      banner("DIŞARI!", "small miss");
+    } else if (dist < 50) {
+      lastResult = "save";
+      ball.vx = (bx >= kx ? 1 : -1) * 190; ball.vy = 230;
+      sfx.save();
+      banner("KURTARDI! 🧤", "small");
+    } else {
+      lastResult = "goal";
+      ball.vx = 0; ball.vy = 0;
+      score += GOAL_POINTS; goals++;
+      updateStats();
+      sfx.goal();
+      spawnConfetti();
+      banner("GOOOL!", "gold");
+    }
+    var label = lastResult === "goal" ? "+5 puan! ⚽" : (lastResult === "save" ? "Kaleci kurtardı." : "Top dışarı çıktı.");
+    elPanel.innerHTML = '<div class="center"><h2 class="aim-title">' + label + '</h2></div>';
+  }
+
+  function banner(text, cls) {
+    elOverlay.innerHTML = '<div class="banner ' + cls + '">' + text + '</div>';
+    var d = elOverlay.firstChild;
+    setTimeout(function () { if (elOverlay.firstChild === d) elOverlay.innerHTML = ""; }, 2000);
+  }
+
+  function showEnd() {
+    state = "end";
+    elTimer.classList.remove("on", "low");
+    sfx.end();
+    setEndBtn(false);
+    var max = Math.max(1, answered) * GOAL_POINTS;
+    var text = score >= max * 0.8 ? "Efsane performans! Milli takıma hazırsın 🏆"
+             : score >= max * 0.5 ? "Güzel maç! Biraz daha çalışırsan şampiyon olursun 💪"
+             : "Antrenmana devam! Bir sonraki maçta daha iyi olacak ⚽";
+    elPanel.innerHTML =
+      '<div class="center"><h2 class="title">Maç bitti!</h2>' +
+      '<div class="big">' + score + ' puan</div>' +
+      '<div class="grid3">' +
+      '<div><b>' + correctCount + '/' + answered + '</b><small>Doğru cevap</small></div>' +
+      '<div><b>' + goals + '</b><small>Gol</small></div>' +
+      '<div><b>' + (answered - goals) + '</b><small>Gol olmayan soru</small></div>' +
+      '</div><p class="sub">' + text + '</p>' +
+      '<div class="btnrow"><button class="btn" id="againBtn">Aynı konularla tekrar</button>' +
+      '<button class="btn alt" id="menuBtn">Konuları değiştir</button></div></div>';
+    document.getElementById("againBtn").addEventListener("click", function () { ac(); startGame(); });
+    document.getElementById("menuBtn").addEventListener("click", function () { showStart(); });
+  }
+
+  function spawnConfetti() {
+    var cols = ["#ffd23f", "#ffffff", "#ff5e5e", "#4cc9f0", "#7cff6b", "#ff9f1c"];
+    for (var i = 0; i < 110; i++) {
+      var a = Math.random() * Math.PI * 2, sp = 120 + Math.random() * 380;
+      confetti.push({
+        x: BALL0.x + aim, y: TARGET_Y,
+        vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 160,
+        w: 5 + Math.random() * 6, h: 8 + Math.random() * 8,
+        r: Math.random() * 6, vr: (Math.random() - .5) * 12,
+        c: cols[i % cols.length], life: 2.2 + Math.random() * .8
+      });
+    }
+  }
+
+  /* ---------- Klavye ---------- */
+  window.addEventListener("keydown", function (e) {
+    var k = e.key;
+    if (k === "ArrowLeft" || k === "a" || k === "A") { if (state === "aim") { held.left = true; e.preventDefault(); } }
+    else if (k === "ArrowRight" || k === "d" || k === "D") { if (state === "aim") { held.right = true; e.preventDefault(); } }
+    else if (k === " " || e.code === "Space") {
+      if (state === "aim") { e.preventDefault(); shoot(); }
+    } else if (state === "question" && (k === "1" || k === "2" || k === "3")) {
+      answer(parseInt(k, 10) - 1);
+    }
+  });
+  window.addEventListener("keyup", function (e) {
+    var k = e.key;
+    if (k === "ArrowLeft" || k === "a" || k === "A") held.left = false;
+    if (k === "ArrowRight" || k === "d" || k === "D") held.right = false;
+  });
+  window.addEventListener("blur", function () { held.left = held.right = false; });
+
+  /* ---------- Güncelleme ---------- */
+  function update(dt) {
+    time += dt;
+
+    // Zamanlayıcı
+    if (state === "question") {
+      timeLeft -= dt;
+      var frac = Math.max(0, timeLeft / QUESTION_TIME);
+      elFill.style.transform = "scaleX(" + frac + ")";
+      elTimer.classList.toggle("low", timeLeft <= 3);
+      if (timeLeft <= 0) answer(-1);
+    } else if (state === "feedback") {
+      stateTimer -= dt;
+      if (stateTimer <= 0) { var f = afterFeedback; afterFeedback = null; if (f) f(); }
+    } else if (state === "result") {
+      stateTimer -= dt;
+      if (stateTimer <= 0) nextQuestion();
+    }
+
+    // Nişan
+    if (state === "aim") {
+      var dir = (held.right ? 1 : 0) - (held.left ? 1 : 0);
+      aim += dir * 300 * dt;
+      aim = Math.max(-220, Math.min(220, aim));
+    }
+
+    // Kaleci
+    if (!diving) keeperTarget = 400 + Math.sin(time * 1.4) * 108;
+    kx += (keeperTarget - kx) * Math.min(1, dt * (diving ? 9 : 6));
+
+    // Top uçuşu
+    if (state === "flight") {
+      flightP += dt / 0.72;
+      var p = Math.min(1, flightP);
+      var e2 = 1 - Math.pow(1 - p, 1.6);
+      ball.x = BALL0.x + aim * e2;
+      ball.y = BALL0.y + (TARGET_Y - BALL0.y) * e2 - Math.sin(Math.PI * e2) * 34;
+      ball.s = 1 - 0.45 * e2;
+      if (p >= 1) resolveShot();
+    } else if (state === "result" && ball.free && lastResult !== "goal") {
+      ball.x += ball.vx * dt; ball.y += ball.vy * dt;
+      ball.vy += 260 * dt;
+      ball.s = Math.max(.5, ball.s - dt * .05);
+    } else if (state === "result" && lastResult === "goal") {
+      ball.y += 14 * dt;
+    }
+
+    // Konfeti
+    for (var i = confetti.length - 1; i >= 0; i--) {
+      var c = confetti[i];
+      c.life -= dt;
+      if (c.life <= 0) { confetti.splice(i, 1); continue; }
+      c.vy += 520 * dt; c.x += c.vx * dt; c.y += c.vy * dt; c.r += c.vr * dt;
+      c.vx *= (1 - dt * .4);
+    }
+  }
+
+  /* ---------- Çizim ---------- */
+  function drawPitch() {
+    var g = ctx.createLinearGradient(0, 0, 0, H);
+    g.addColorStop(0, "#1f7a3a"); g.addColorStop(1, "#37a854");
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    // Çim şeritleri
+    for (var i = 0; i < 10; i++) {
+      ctx.fillStyle = i % 2 ? "rgba(255,255,255,.05)" : "rgba(0,0,0,.05)";
+      ctx.fillRect(0, GOAL.b + i * 30, W, 30);
+    }
+    ctx.fillStyle = "rgba(0,0,0,.08)"; ctx.fillRect(0, 0, W, GOAL.b - 40);
+    // Çizgiler
+    ctx.strokeStyle = "rgba(255,255,255,.85)"; ctx.lineWidth = 4; ctx.lineJoin = "round";
+    ctx.beginPath(); ctx.moveTo(0, GOAL.b); ctx.lineTo(W, GOAL.b); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(190, GOAL.b); ctx.lineTo(120, 350); ctx.lineTo(680, 350); ctx.lineTo(610, GOAL.b); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(300, GOAL.b); ctx.lineTo(270, 270); ctx.lineTo(530, 270); ctx.lineTo(500, GOAL.b); ctx.stroke();
+    ctx.beginPath(); ctx.ellipse(400, 350, 90, 34, 0, 0, Math.PI); ctx.stroke();
+    ctx.fillStyle = "rgba(255,255,255,.9)"; ctx.beginPath(); ctx.ellipse(400, BALL0.y + 14, 7, 3.5, 0, 0, 7); ctx.fill();
+  }
+
+  function drawNetBack() {
+    ctx.save();
+    ctx.beginPath(); ctx.rect(GOAL.l, GOAL.t, GOAL.r - GOAL.l, GOAL.b - GOAL.t); ctx.clip();
+    ctx.fillStyle = "rgba(10,40,20,.55)"; ctx.fillRect(GOAL.l, GOAL.t, GOAL.r - GOAL.l, GOAL.b - GOAL.t);
+    ctx.strokeStyle = "rgba(255,255,255,.28)"; ctx.lineWidth = 1;
+    for (var x = GOAL.l; x <= GOAL.r; x += 14) { ctx.beginPath(); ctx.moveTo(x, GOAL.t); ctx.lineTo(x, GOAL.b); ctx.stroke(); }
+    for (var y = GOAL.t; y <= GOAL.b; y += 14) { ctx.beginPath(); ctx.moveTo(GOAL.l, y); ctx.lineTo(GOAL.r, y); ctx.stroke(); }
+    ctx.restore();
+  }
+
+  function drawPosts() {
+    ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 8; ctx.lineCap = "round"; ctx.lineJoin = "round";
+    ctx.beginPath(); ctx.moveTo(GOAL.l, GOAL.b); ctx.lineTo(GOAL.l, GOAL.t); ctx.lineTo(GOAL.r, GOAL.t); ctx.lineTo(GOAL.r, GOAL.b); ctx.stroke();
+    ctx.lineCap = "butt";
+  }
+
+  function drawKeeper() {
+    var lean = Math.max(-.5, Math.min(.5, (keeperTarget - kx) * 0.006));
+    ctx.save();
+    ctx.translate(kx, GOAL.b);
+    ctx.rotate(lean);
+    // gölge
+    ctx.fillStyle = "rgba(0,0,0,.25)"; ctx.beginPath(); ctx.ellipse(0, 2, 26, 6, 0, 0, 7); ctx.fill();
+    // bacaklar
+    ctx.fillStyle = "#1b2f6b"; ctx.fillRect(-15, -32, 11, 32); ctx.fillRect(4, -32, 11, 32);
+    ctx.fillStyle = "#111"; ctx.fillRect(-17, -6, 14, 6); ctx.fillRect(3, -6, 14, 6);
+    // kollar
+    ctx.strokeStyle = "#ff8c00"; ctx.lineWidth = 10; ctx.lineCap = "round";
+    ctx.beginPath(); ctx.moveTo(-19, -62); ctx.lineTo(-40, -90); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(19, -62); ctx.lineTo(40, -90); ctx.stroke();
+    ctx.lineCap = "butt";
+    // gövde
+    ctx.fillStyle = "#ff8c00";
+    ctx.beginPath(); ctx.roundRect ? ctx.roundRect(-21, -70, 42, 42, 8) : ctx.rect(-21, -70, 42, 42); ctx.fill();
+    ctx.fillStyle = "rgba(255,255,255,.35)"; ctx.fillRect(-21, -52, 42, 5);
+    // eldivenler
+    ctx.fillStyle = "#eaffea";
+    ctx.beginPath(); ctx.arc(-40, -92, 9, 0, 7); ctx.fill();
+    ctx.beginPath(); ctx.arc(40, -92, 9, 0, 7); ctx.fill();
+    // kafa
+    ctx.fillStyle = "#f2c7a0"; ctx.beginPath(); ctx.arc(0, -82, 12, 0, 7); ctx.fill();
+    ctx.fillStyle = "#3b2a1a"; ctx.beginPath(); ctx.arc(0, -86, 12, Math.PI, 0); ctx.fill();
+    ctx.restore();
+  }
+
+  function drawBall(bx, by, s) {
+    ctx.save();
+    ctx.fillStyle = "rgba(0,0,0,.22)";
+    var sy = Math.min(BALL0.y + 16, by + 26 * s);
+    if (state === "flight" || state === "aim" || state === "question" || state === "feedback" || state === "start") {
+      ctx.beginPath(); ctx.ellipse(bx, Math.max(sy, by + 12 * s), 14 * s, 5 * s, 0, 0, 7); ctx.fill();
+    }
+    ctx.font = Math.round(36 * s) + "px 'Segoe UI Emoji','Apple Color Emoji','Noto Color Emoji',sans-serif";
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillText("⚽", bx, by);
+    ctx.restore();
+  }
+
+  function drawAim() {
+    var ax = BALL0.x + aim, ay = TARGET_Y;
+    var out = Math.abs(aim) > 146;
+    ctx.save();
+    ctx.setLineDash([8, 8]); ctx.strokeStyle = "rgba(255,255,255,.55)"; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(BALL0.x, BALL0.y - 20); ctx.lineTo(ax, ay + 22); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.strokeStyle = out ? "#ff6b6b" : "#ffe14a"; ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.arc(ax, ay, 22, 0, 7); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(ax - 32, ay); ctx.lineTo(ax - 10, ay); ctx.moveTo(ax + 10, ay); ctx.lineTo(ax + 32, ay);
+    ctx.moveTo(ax, ay - 32); ctx.lineTo(ax, ay - 10); ctx.moveTo(ax, ay + 10); ctx.lineTo(ax, ay + 32); ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawConfetti() {
+    confetti.forEach(function (c) {
+      ctx.save(); ctx.translate(c.x, c.y); ctx.rotate(c.r);
+      ctx.globalAlpha = Math.min(1, c.life);
+      ctx.fillStyle = c.c; ctx.fillRect(-c.w / 2, -c.h / 2, c.w, c.h);
+      ctx.restore();
+    });
+  }
+
+  function draw() {
+    drawPitch();
+    drawNetBack();
+    drawKeeper();
+    drawPosts();
+    if (state === "aim") drawAim();
+    var idle = (state === "start" || state === "question" || state === "feedback" || state === "aim");
+    if (idle) drawBall(BALL0.x, BALL0.y, 1);
+    else drawBall(ball.x, ball.y, ball.s);
+    drawConfetti();
+  }
+
+  var last = 0;
+  function loop(ts) {
+    var dt = Math.min(0.05, (ts - last) / 1000 || 0);
+    last = ts;
+    update(dt);
+    draw();
+    requestAnimationFrame(loop);
+  }
+
+  /* ---------- Bitir ---------- */
+  var endBtn = document.getElementById("endBtn");
+  var endArmed = null;
+  function setEndBtn(show) {
+    endBtn.hidden = !show;
+    disarmEnd();
+  }
+  function disarmEnd() {
+    if (endArmed) clearTimeout(endArmed);
+    endArmed = null;
+    endBtn.textContent = "Bitir";
+    endBtn.classList.remove("arm");
+  }
+  endBtn.addEventListener("click", function () {
+    if (state === "start" || state === "end") return;
+    if (!endArmed) {
+      endBtn.textContent = "Emin misin?";
+      endBtn.classList.add("arm");
+      endArmed = setTimeout(disarmEnd, 3000);
+    } else {
+      disarmEnd();
+      afterFeedback = null;
+      held.left = held.right = false;
+      elOverlay.innerHTML = "";
+      confetti = [];
+      showEnd();
+    }
+  });
+
+  /* ---------- Tema ---------- */
+  var themeBtn = document.getElementById("themeBtn");
+  themeBtn.addEventListener("click", function () {
+    var root = document.documentElement;
+    var dark = root.getAttribute("data-theme") === "dark" ||
+      (!root.getAttribute("data-theme") && window.matchMedia("(prefers-color-scheme: dark)").matches);
+    root.setAttribute("data-theme", dark ? "light" : "dark");
+  });
+
+  updateStats();
+  showStart();
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
