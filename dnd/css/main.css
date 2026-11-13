@@ -1203,3 +1203,19 @@ select {
   color: var(--text-muted);
   margin-top: 4px;
 }
+
+.dm-author-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(229, 184, 66, 0.12);
+  border: 1px solid rgba(229, 184, 66, 0.35);
+  border-radius: var(--radius-round);
+  padding: 3px 10px;
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--accent);
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+}

@@ -56,18 +56,32 @@ const Multiplayer = {
 
       this.peer.on('open', (id) => {
         console.log('Host Peer hazır:', id);
-        this.party = [{
-          id: id,
-          name: char.name,
-          race: char.raceName || char.race,
-          class: char.className || char.class,
-          hp: char.hp,
-          maxHp: char.maxHp,
-          ac: char.ac,
-          portrait: char.portrait,
-          isHost: true,
-          isReady: true // Host her zaman hazır
-        }];
+        this.party = [
+          {
+            id: 'eni-dm-resident',
+            name: '👑 ENI',
+            race: 'Dungeon Master',
+            class: 'Yapay Zeka Hakem & Yazar',
+            hp: '∞',
+            maxHp: '∞',
+            ac: 20,
+            portrait: '',
+            isDM: true,
+            isReady: true
+          },
+          {
+            id: id,
+            name: char.name,
+            race: char.raceName || char.race,
+            class: char.className || char.class,
+            hp: char.hp,
+            maxHp: char.maxHp,
+            ac: char.ac,
+            portrait: char.portrait,
+            isHost: true,
+            isReady: true // Host her zaman hazır
+          }
+        ];
 
         this.showInRoomUI(true);
       });
@@ -333,14 +347,14 @@ const Multiplayer = {
 
   updateTurnActionStatus() {
     const submitted = Object.keys(this.pendingActions).length;
-    const total = Math.max(1, this.party.length);
+    const total = Math.max(1, this.party.filter(p => !p.isDM).length);
     Adventure.setTurnActionStatus(submitted, total);
   },
 
   checkAllActionsSubmitted() {
     if (!this.isHost) return;
 
-    const total = Math.max(1, this.party.length);
+    const total = Math.max(1, this.party.filter(p => !p.isDM).length);
     const submitted = Object.keys(this.pendingActions).length;
 
     if (submitted >= total) {
@@ -442,11 +456,76 @@ Ardından sahnenin o anki gerilimini tarif et.`;
               <button class="btn btn-secondary btn-lg" onclick="Multiplayer.joinRoom()">Katıl</button>
             </div>
           </div>
+
+          <div class="lobby-box">
+            <h4>🎭 Canlı DM Olarak Katıl</h4>
+            <p>Karakter seçmeden doğrudan <strong>Dungeon Master</strong> olarak odaya gir, oyuncuların hamlelerini izle ve oyunu yönet.</p>
+            <div class="input-with-btn">
+              <input type="text" id="join-dm-room-code" placeholder="Örn: DND-7482" style="text-transform:uppercase">
+              <button class="btn btn-primary btn-lg" onclick="Multiplayer.joinAsDM()">👑 DM Ol</button>
+            </div>
+          </div>
         </div>
 
         <div id="lobby-status" class="lobby-status-msg"></div>
       </div>
     `;
+  },
+
+  joinAsDM(code) {
+    const cleanCode = (code || document.getElementById('join-dm-room-code')?.value || '').trim().toUpperCase();
+    if (!cleanCode) {
+      alert("Lütfen bir oda kodu gir!");
+      return;
+    }
+
+    this.roomCode = cleanCode;
+    this.isHost = false;
+    this.isHumanDM = true;
+
+    const statusEl = document.getElementById('lobby-status');
+    if (statusEl) statusEl.innerHTML = `<span class="loading-spin">⏳</span> Odaya Dungeon Master olarak bağlanılıyor (${cleanCode})...`;
+
+    try {
+      this.peer = new Peer({ debug: 1 });
+      this.peer.on('open', (myId) => {
+        const targetHostId = `basihamam-dnd-${cleanCode.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
+        const conn = this.peer.connect(targetHostId, { reliable: true });
+        this.hostConn = conn;
+
+        conn.on('open', () => {
+          conn.send({
+            type: 'JOIN_REQUEST',
+            player: {
+              id: myId,
+              name: '👑 Dungeon Master',
+              race: 'Dungeon Master',
+              class: 'Oyun Yöneticisi',
+              hp: '∞',
+              maxHp: '∞',
+              ac: 20,
+              portrait: '',
+              isHost: false,
+              isDM: true,
+              isReady: true
+            }
+          });
+
+          this.showInRoomUI(false);
+          Adventure.isDMMode = true;
+        });
+
+        conn.on('data', (data) => {
+          this.handleClientData(data);
+        });
+
+        conn.on('error', (err) => {
+          alert('DM olarak bağlanırken hata oluştu: ' + err.message);
+        });
+      });
+    } catch (e) {
+      alert('Bağlantı hatası: ' + e.message);
+    }
   },
 
   showInRoomUI(isHost) {

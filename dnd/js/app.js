@@ -754,7 +754,13 @@ const Adventure = {
       .replace(/\n\n/g, '<br><br>')
       .replace(/\n/g, '<br>');
 
-    msg.innerHTML = formatted + (ruleBadges.length > 0 ? `<div class="rule-badges-wrap">${ruleBadges.join('')}</div>` : '');
+    msg.innerHTML = `
+      <div class="dm-author-badge">
+        <span>👑 ENI (Dungeon Master)</span>
+      </div>
+      <div class="dm-content-body">${formatted}</div>
+      ${ruleBadges.length > 0 ? `<div class="rule-badges-wrap">${ruleBadges.join('')}</div>` : ''}
+    `;
     container.appendChild(msg);
     this.scrollToBottom();
   },
