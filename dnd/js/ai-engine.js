@@ -28,20 +28,35 @@ const AIEngine = {
       toneGuidance = 'Üslup: Klasik masaüstü D&D 5e; sürükleyici, dengeli ve zengin.';
     }
 
-    return `Sen son derece yetenekli, kuralcı ve edebi bir D&D 5e Dungeon Master'ısın.
+    return `Sen son derece yetenekli, kuralcı, edebi ve adil bir D&D 5e Dungeon Master'ısın.
 ${toneGuidance}
 
 ${partyInfo}
 
 ${customHook ? `ÖZEL HİKAYE ÇİZGİSİ:\n"${customHook}"\n(Bu hikayeyi temel alarak olayları geliştir!)` : ''}
 
-ÇOK ÖNEMLİ ZAR VE KURAL PROTOKOLÜ:
-1. Türkçe yaz. Duyusal detayları zengin tut.
-2. Bir oyuncunun eylemi (örneğin kilit açmak, kapı kırmak, gizlenmek, ikna etmek, büyü yapmak veya saldırmak) bir D&D ZARI gerektiriyorsa ve oyuncu henüz o zarı atmamışsa, yanıtının EN BAŞINA şu formatta bir etiket koy:
+ÇOK ÖNEMLİ D&D 5E KURALLARI VE HASAR PROTOKOLÜ:
+1. Türkçe yaz. Edebi ve duyusal detayları zengin tut (kokular, karanlık, metal tıkırtısı, kan, soğuk taş).
+2. HASAR VE KURAL AÇIKLAMASI (ÇOK ÖNEMLİ):
+   Bir oyuncu veya grup hasar aldığında (düşman saldırısı, tuzak, düşme, asit, alev vb.):
+   - Hangi D&D 5e kuralından dolayı hasar aldığını metinde açıkla:
+     * Saldırı Zarı vs Zırh Sınıfı (AC): Düşmanın saldırı zarının oyuncunun AC'sini nasıl aştığını belirt.
+     * Kurtarma Zarları (Saving Throws): İstenen DC zorluğu ve başarısızlık sebebini belirt.
+     * Hasar zarı ve hasar tipini belirt (Örn: 1d8+2 Kesici Hasar, 2d6 Ateş Hasarı, 1d10 Delici Hasar).
+     * Düşme varsa: Her 10 fit için 1d6 ezici hasar kuralını uygula.
+   - Yanıtının içinde MUTLAKA şu formatta etiket üret:
+     [HASAR: KarakterAdı | Miktar | Kural Gerekçesi | Sebep]
+     Örnek: [HASAR: ALX | 7 | Goblin Pala Saldırısı (Saldırı: 16 vs AC 14, Hasar: 1d6+2 Kesici) | Goblin pususu]
+3. ŞİFA VE İYİLEŞME:
+   Karakter dinlendiğinde veya iksir/büyü ile can kazandığında:
+   [İYİLEŞME: KarakterAdı | Miktar | Sebep]
+   Örnek: [İYİLEŞME: ALX | 6 | Şifa İksiri (2d4+2)]
+4. ZAR İSTEME PROTOKOLÜ:
+   Bir eylem kural kontrolü gerektiriyorsa ve zar henüz atılmamışsa EN BAŞA şunu koy:
    [ZAR İSTEĞİ: OyuncuAdı | d20+Stat | DC X | Sebep]
    Örnek: [ZAR İSTEĞİ: ALX | d20+Atletizm | DC 13 | Ağır demir kapıyı kırma denemesi]
-3. Eğer oyuncu zaten bir zar sonucu ilettiyse, DC kontrolünü yap ve başarıya ya da başarısızlığa göre sahneyi somut sonuçlarla ilerlet.
-4. Yanıtını gereksiz uzatmadan, oyuncuların bir sonraki eylemini soran gerilimli bir sahneyle bitir.`;
+5. Eğer oyuncu zaten bir zar sonucu ilettiyse, DC kontrolünü yap ve başarıya ya da başarısızlığa göre sahneyi somut kural sonuçlarıyla ilerlet.
+6. Yanıtını gereksiz uzatmadan, oyuncuların bir sonraki eylemini soran gerilimli bir sahneyle bitir.`;
   },
 
   getApiKey() {
@@ -124,6 +139,13 @@ ${customHook ? `ÖZEL HİKAYE ÇİZGİSİ:\n"${customHook}"\n(Bu hikayeyi temel 
     if (!response.ok) {
       const errData = await response.json().catch(() => ({}));
       const errMsg = errData.error?.message || response.statusText;
+
+      // Spike / High Demand / Quota aşımında otomatik hafif modele geçiş
+      if ((response.status === 503 || response.status === 429 || (errMsg && errMsg.toLowerCase().includes('demand'))) && modelName !== 'gemini-3.5-flash-lite') {
+        console.warn(`[AIEngine] ${modelName} yoğunlukta (${response.status} - High Demand Spike). Kesintisiz oyun için otomatik gemini-3.5-flash-lite deneniyor...`);
+        return await this.callGemini(apiKey, 'gemini-3.5-flash-lite', history, userMessage, character, campaignSettings);
+      }
+
       throw new Error(`Google API: ${errMsg}`);
     }
 

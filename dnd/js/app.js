@@ -629,17 +629,132 @@ const Adventure = {
     this.scrollToBottom();
   },
 
+  applyDamage(targetName, amount, rule = '', reason = '') {
+    const num = parseInt(amount, 10);
+    if (isNaN(num) || num <= 0) return;
+
+    const myName = (this.character?.name || '').toLowerCase();
+    const isMe = !targetName || targetName.toLowerCase() === myName || targetName.toLowerCase() === 'oyuncu';
+
+    if (isMe && this.character) {
+      this.character.hp = Math.max(0, this.character.hp - num);
+      this.updateTopBar();
+      this.renderSidebar();
+      Storage.saveCharacter(this.character);
+
+      if (this.character.hp === 0) {
+        this.addSystemMessage(`💀 <strong>${this.character.name}</strong> 0 HP'ye düştü! <strong>Baygın (Unconscious)</strong> durumuna geçti! D&D 5e Ölüm Kurtarma Zarı (Death Saving Throw) gerekiyor.`);
+      }
+    }
+
+    if (Multiplayer.party && Multiplayer.party.length > 0) {
+      const member = Multiplayer.party.find(p => p.name.toLowerCase() === (targetName || '').toLowerCase());
+      if (member) {
+        member.hp = Math.max(0, member.hp - num);
+        Multiplayer.renderPartyList();
+        if (Multiplayer.isHost) {
+          Multiplayer.broadcast({ type: 'PARTY_UPDATE', party: Multiplayer.party });
+        }
+      }
+    }
+
+    this.saveCurrentCampaign();
+  },
+
+  heal(targetName, amount, reason = '') {
+    const num = parseInt(amount, 10);
+    if (isNaN(num) || num <= 0) return;
+
+    const myName = (this.character?.name || '').toLowerCase();
+    const isMe = !targetName || targetName.toLowerCase() === myName || targetName.toLowerCase() === 'oyuncu';
+
+    if (isMe && this.character) {
+      this.character.hp = Math.min(this.character.maxHp, this.character.hp + num);
+      this.updateTopBar();
+      this.renderSidebar();
+      Storage.saveCharacter(this.character);
+    }
+
+    if (Multiplayer.party && Multiplayer.party.length > 0) {
+      const member = Multiplayer.party.find(p => p.name.toLowerCase() === (targetName || '').toLowerCase());
+      if (member) {
+        member.hp = Math.min(member.maxHp, member.hp + num);
+        Multiplayer.renderPartyList();
+        if (Multiplayer.isHost) {
+          Multiplayer.broadcast({ type: 'PARTY_UPDATE', party: Multiplayer.party });
+        }
+      }
+    }
+
+    this.saveCurrentCampaign();
+  },
+
   renderDMBubble(text) {
     const container = document.getElementById('story-messages');
     if (!container) return;
+
+    let processedText = text;
+    const ruleBadges = [];
+
+    // [HASAR: Karakter | Miktar | Kural | Sebep]
+    const damageRegex = /\[HASAR:\s*([^|\]]+)\|\s*([^|\]]+)(?:\|\s*([^|\]]+))?(?:\|\s*([^\]]+))?\]/gi;
+    let dMatch;
+    while ((dMatch = damageRegex.exec(text)) !== null) {
+      const target = dMatch[1]?.trim() || '';
+      const amount = parseInt(dMatch[2]?.trim(), 10) || 0;
+      const rule = dMatch[3]?.trim() || 'D&D 5e Hasar Kuralı';
+      const reason = dMatch[4]?.trim() || '';
+
+      this.applyDamage(target, amount, rule, reason);
+
+      ruleBadges.push(`
+        <div class="rule-callout-card damage-card">
+          <div class="rule-callout-header">💥 D&D 5E HASAR & KURAL UYGULAMASI</div>
+          <div class="rule-callout-body">
+            <div><strong>${target}</strong>, <span class="badge-dmg">-${amount} HP</span> hasar aldı!</div>
+            <div class="rule-meta">📜 <strong>Kural Gerekçesi:</strong> ${rule} ${reason ? `(${reason})` : ''}</div>
+          </div>
+        </div>
+      `);
+    }
+
+    // [İYİLEŞME: Karakter | Miktar | Sebep]
+    const healRegex = /\[İYİLEŞME:\s*([^|\]]+)\|\s*([^|\]]+)(?:\|\s*([^\]]+))?\]/gi;
+    let hMatch;
+    while ((hMatch = healRegex.exec(text)) !== null) {
+      const target = hMatch[1]?.trim() || '';
+      const amount = parseInt(hMatch[2]?.trim(), 10) || 0;
+      const reason = hMatch[3]?.trim() || 'İyileşme';
+
+      this.heal(target, amount, reason);
+
+      ruleBadges.push(`
+        <div class="rule-callout-card heal-card">
+          <div class="rule-callout-header">💚 D&D 5E İYİLEŞME & ŞİFA</div>
+          <div class="rule-callout-body">
+            <div><strong>${target}</strong>, <span class="badge-heal">+${amount} HP</span> can kazandı!</div>
+            <div class="rule-meta">✨ <strong>Sebep:</strong> ${reason}</div>
+          </div>
+        </div>
+      `);
+    }
+
+    // Etiketleri temizle
+    processedText = processedText
+      .replace(/\[HASAR:[^\]]+\]/gi, '')
+      .replace(/\[İYİLEŞME:[^\]]+\]/gi, '')
+      .replace(/\[ZAR İSTEĞİ:[^\]]+\]/gi, '')
+      .trim();
+
     const msg = document.createElement('div');
     msg.className = 'message message-dm';
-    const formatted = text
+    const formatted = processedText
       .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
       .replace(/\*(.*?)\*/g, '<em>$1</em>')
       .replace(/\n\n/g, '<br><br>')
       .replace(/\n/g, '<br>');
-    msg.innerHTML = formatted;
+
+    msg.innerHTML = formatted + (ruleBadges.length > 0 ? `<div class="rule-badges-wrap">${ruleBadges.join('')}</div>` : '');
     container.appendChild(msg);
     this.scrollToBottom();
   },
@@ -690,6 +805,135 @@ const Adventure = {
       history: this.history,
       updatedAt: Date.now()
     });
+  },
+
+  // ================= DM MASASI & KONTROL PANELİ =================
+  openDMConsole() {
+    const modal = document.getElementById('dm-console-modal');
+    if (!modal) return;
+
+    // Hedef oyuncu listesini doldur
+    const select = document.getElementById('dm-target-player');
+    if (select) {
+      select.innerHTML = '';
+      if (this.character) {
+        select.innerHTML += `<option value="${this.character.name}">${this.character.name} (Sen - ${this.character.hp}/${this.character.maxHp} HP)</option>`;
+      }
+      if (Multiplayer.party) {
+        Multiplayer.party.forEach(p => {
+          if (p.name !== this.character?.name) {
+            select.innerHTML += `<option value="${p.name}">${p.name} (${p.hp}/${p.maxHp} HP)</option>`;
+          }
+        });
+      }
+    }
+
+    modal.style.display = 'flex';
+    this.switchDMTab('actions');
+  },
+
+  closeDMConsole() {
+    const modal = document.getElementById('dm-console-modal');
+    if (modal) modal.style.display = 'none';
+  },
+
+  switchDMTab(tab) {
+    document.querySelectorAll('.dm-tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.dm-tab-content').forEach(c => c.style.display = 'none');
+
+    const btn = document.getElementById(`btn-dm-tab-${tab}`);
+    const content = document.getElementById(`dm-tab-${tab}`);
+    if (btn) btn.classList.add('active');
+    if (content) content.style.display = 'block';
+  },
+
+  dmApplyDamage() {
+    const target = document.getElementById('dm-target-player')?.value || this.character?.name || 'Maceracı';
+    const amount = parseInt(document.getElementById('dm-hp-amount')?.value, 10) || 1;
+    const rule = document.getElementById('dm-rule-reason')?.value.trim() || 'DM Müdahalesi (D&D 5e Kuralı)';
+
+    const tagMsg = `[HASAR: ${target} | ${amount} | ${rule} | DM Eylemi]\n**Dungeon Master Kararı:** ${target}, ${rule} sebebiyle **${amount} hasar** alıyor!`;
+    this.addDMMessage(tagMsg);
+    if (Multiplayer.peer) {
+      const payload = { type: 'DM_MESSAGE', text: tagMsg };
+      if (Multiplayer.isHost) Multiplayer.broadcast(payload);
+      else Multiplayer.sendToHost(payload);
+    }
+    this.closeDMConsole();
+  },
+
+  dmApplyHeal() {
+    const target = document.getElementById('dm-target-player')?.value || this.character?.name || 'Maceracı';
+    const amount = parseInt(document.getElementById('dm-hp-amount')?.value, 10) || 1;
+
+    const tagMsg = `[İYİLEŞME: ${target} | ${amount} | DM Şifası]\n**Dungeon Master Kararı:** ${target}, ilahi bir lütuf veya şifa iksiri sayesinde **+${amount} can** kazanıyor!`;
+    this.addDMMessage(tagMsg);
+    if (Multiplayer.peer) {
+      const payload = { type: 'DM_MESSAGE', text: tagMsg };
+      if (Multiplayer.isHost) Multiplayer.broadcast(payload);
+      else Multiplayer.sendToHost(payload);
+    }
+    this.closeDMConsole();
+  },
+
+  dmTriggerTrap(type) {
+    const target = document.getElementById('dm-target-player')?.value || this.character?.name || 'Maceracı';
+    let text = '';
+    if (type === 'pit') {
+      const dmg = Math.floor(Math.random() * 6) + 1;
+      text = `[HASAR: ${target} | ${dmg} | Düşme Hasarı (10ft derinlik: 1d6 Ezici, DC 12 Dex) | Çukur Tuzağı]\n⚠️ **Tuzak Devrede!** Zemin ayağınızın altından aniden kayıyor! Derin bir çukura yuvarlanıyorsunuz. Taş zemine çarpmanın etkisiyle nefesiniz kesiliyor!`;
+    } else if (type === 'poison') {
+      const dmg = Math.floor(Math.random() * 4) + 1 + Math.floor(Math.random() * 4) + 1;
+      text = `[HASAR: ${target} | ${dmg} | Zehirli İğne Tuzağı (1d4 Delici + 2d4 Zehir, DC 13 Con) | Gizli İğne]\n⚠️ **Tuzak Devrede!** Duvarın oyuğundan fırlayan ince paslı bir iğne teninize batıyor. Damarlarınızda buz gibi yanan bir zehrin yayıldığını hissediyorsunuz!`;
+    } else if (type === 'rocks') {
+      const dmg = Math.floor(Math.random() * 6) + 1 + Math.floor(Math.random() * 6) + 1;
+      text = `[HASAR: ${target} | ${dmg} | Düşen Kaya Tuzağı (2d6 Ezici Hasar, DC 14 Dex) | Taş Çığı]\n⚠️ **Tuzak Devrede!** Tavandaki destek kirişi gıcırdayarak çöküyor! Yukarıdan yağan devasa taş blokları doğrudan üzerinize iniyor!`;
+    } else if (type === 'fire') {
+      const dmg = Math.floor(Math.random() * 6) + 1 + Math.floor(Math.random() * 6) + 1 + Math.floor(Math.random() * 6) + 1;
+      text = `[HASAR: ${target} | ${dmg} | Kadim Büyü Tuzağı (3d6 Ateş Hasarı, DC 15 Dex) | Alev Püskürmesi]\n⚠️ **Tuzak Devrede!** Taşların üzerindeki kızıl rünler alev alıyor ve bir anda koridoru kavurucu bir cehennem dalgası kaplıyor!`;
+    }
+
+    this.addDMMessage(text);
+    if (Multiplayer.peer) {
+      const payload = { type: 'DM_MESSAGE', text: text };
+      if (Multiplayer.isHost) Multiplayer.broadcast(payload);
+      else Multiplayer.sendToHost(payload);
+    }
+    this.closeDMConsole();
+  },
+
+  dmSpawnEnemies(type) {
+    let enemyName = '';
+    let enemyCount = Math.floor(Math.random() * 3) + 2;
+    if (type === 'goblin') enemyName = `${enemyCount} adet Goblin Avcısı (AC: 15, HP: 7)`;
+    else if (type === 'skeleton') enemyName = `${enemyCount} adet Kadim İskelet Savaşçı (AC: 13, HP: 13)`;
+    else if (type === 'bandit') enemyName = `${enemyCount} adet Zırhlı Haydut (AC: 12, HP: 11)`;
+    else if (type === 'wolf') enemyName = `${enemyCount} adet Aç Kurt (AC: 13, HP: 11)`;
+
+    const text = `⚔️ **Düşman Pususu!** Gölgelerin arasından hırlamalar ve kılıç kınından çekilme sesleri yükseliyor! Karşınızda **${enemyName}** beliriyor! Silahlarınızı çekin, inisiyatif zarlarınızı hazırlayın!`;
+    this.addDMMessage(text);
+    if (Multiplayer.peer) {
+      const payload = { type: 'DM_MESSAGE', text: text };
+      if (Multiplayer.isHost) Multiplayer.broadcast(payload);
+      else Multiplayer.sendToHost(payload);
+    }
+    this.closeDMConsole();
+  },
+
+  dmBroadcastStory() {
+    const input = document.getElementById('dm-custom-narrative');
+    const text = input?.value.trim();
+    if (!text) return;
+
+    const formatted = `👑 **Dungeon Master Anlatımı:**\n${text}`;
+    this.addDMMessage(formatted);
+    if (Multiplayer.peer) {
+      const payload = { type: 'DM_MESSAGE', text: formatted };
+      if (Multiplayer.isHost) Multiplayer.broadcast(payload);
+      else Multiplayer.sendToHost(payload);
+    }
+    input.value = '';
+    this.closeDMConsole();
   }
 };
 

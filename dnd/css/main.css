@@ -993,3 +993,213 @@ select {
     grid-template-columns: 1fr;
   }
 }
+
+/* ================= DM MASASI & KURAL KARTLARI ================= */
+.dm-modal-card {
+  max-width: 660px;
+  max-height: 90vh;
+}
+
+.dm-console-tabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+  overflow-x: auto;
+}
+
+.dm-tab-btn {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-muted);
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 700;
+  padding: 8px 14px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+}
+
+.dm-tab-btn:hover {
+  color: var(--text);
+}
+
+.dm-tab-btn.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+.dm-section {
+  background: var(--bg-darkest);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-bottom: 14px;
+}
+
+.dm-section h4 {
+  font-family: var(--font-display);
+  color: var(--accent);
+  font-size: 14px;
+  margin-bottom: 12px;
+}
+
+.dm-grid-row {
+  display: flex;
+  gap: 12px;
+}
+
+.dm-quick-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 8px;
+}
+
+.btn-danger {
+  background: linear-gradient(135deg, #c0392b, #e74c3c);
+  color: #fff;
+  border-color: #c0392b;
+  font-weight: 700;
+}
+
+.btn-danger:hover {
+  box-shadow: 0 0 16px rgba(231, 76, 60, 0.4);
+}
+
+.btn-success {
+  background: linear-gradient(135deg, #27ae60, #2ecc71);
+  color: #fff;
+  border-color: #27ae60;
+  font-weight: 700;
+}
+
+.btn-success:hover {
+  box-shadow: 0 0 16px rgba(46, 204, 113, 0.4);
+}
+
+/* D&D 5e Rules Cheatsheet */
+.rules-cheatsheet {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-height: 60vh;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.rule-block {
+  background: var(--bg-darkest);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px;
+}
+
+.rule-block h5 {
+  font-family: var(--font-display);
+  color: var(--accent);
+  font-size: 14px;
+  margin-bottom: 8px;
+}
+
+.rule-block p, .rule-block ul {
+  font-size: 13px;
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+
+.rule-block ul {
+  padding-left: 20px;
+  margin-top: 6px;
+}
+
+.rules-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  margin-top: 8px;
+}
+
+.rules-table th, .rules-table td {
+  padding: 6px 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  text-align: left;
+}
+
+.rules-table th {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.damage-types-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.dmg-tag {
+  font-size: 11px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border);
+  padding: 4px 8px;
+  border-radius: var(--radius-round);
+  color: var(--text);
+}
+
+/* Rule Callout Badges in DM Bubbles */
+.rule-badges-wrap {
+  margin-top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.rule-callout-card {
+  padding: 12px 14px;
+  border-radius: var(--radius);
+  font-size: 13px;
+  line-height: 1.5;
+  background: rgba(10, 10, 15, 0.6);
+}
+
+.rule-callout-card.damage-card {
+  border-left: 4px solid var(--danger);
+  border-top: 1px solid rgba(231, 76, 60, 0.2);
+  border-right: 1px solid rgba(231, 76, 60, 0.2);
+  border-bottom: 1px solid rgba(231, 76, 60, 0.2);
+}
+
+.rule-callout-card.heal-card {
+  border-left: 4px solid var(--success);
+  border-top: 1px solid rgba(46, 204, 113, 0.2);
+  border-right: 1px solid rgba(46, 204, 113, 0.2);
+  border-bottom: 1px solid rgba(46, 204, 113, 0.2);
+}
+
+.rule-callout-header {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  margin-bottom: 4px;
+}
+
+.damage-card .rule-callout-header { color: var(--danger); }
+.heal-card .rule-callout-header { color: var(--success); }
+
+.badge-dmg {
+  color: #ff6b6b;
+  font-weight: 800;
+}
+
+.badge-heal {
+  color: #51cf66;
+  font-weight: 800;
+}
+
+.rule-meta {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 4px;
+}

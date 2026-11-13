@@ -319,6 +319,7 @@
         <span class="hp-text" id="adv-hp-text">10/10</span>
       </div>
       <div style="display:flex;gap:6px">
+        <button class="btn btn-sm btn-primary" onclick="Adventure.openDMConsole()" title="DM Masası & Kural Rehberi">👑 DM Masası</button>
         <button class="btn btn-sm btn-ghost" onclick="document.getElementById('export-modal').style.display='flex'" title="Hikayeyi Kaydet / Dışa Aktar">💾</button>
         <button class="btn btn-sm btn-ghost" onclick="Adventure.showDicePanel()" title="Zar Paneli">🎲</button>
       </div>
@@ -508,6 +509,144 @@
         <button class="btn btn-secondary btn-lg" onclick="Adventure.exportCampaign('json'); document.getElementById('export-modal').style.display='none'">
           📂 Ham Oyun Kaydı İndir (.json / Tüm Veriler)
         </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL: DM MASASI & KONTROL PANELİ ==================== -->
+  <div class="modal-overlay" id="dm-console-modal" style="display:none">
+    <div class="modal-card dm-modal-card">
+      <div class="modal-header">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:24px">👑</span>
+          <div>
+            <h3 style="margin:0;color:var(--accent)">Dungeon Master Masası</h3>
+            <span style="font-size:11px;color:var(--text-muted)">Canlı D&D 5e Kural & Olay Yönetimi</span>
+          </div>
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="Adventure.closeDMConsole()">✕</button>
+      </div>
+
+      <!-- DM Sekmeleri -->
+      <div class="dm-console-tabs">
+        <button class="dm-tab-btn active" id="btn-dm-tab-actions" onclick="Adventure.switchDMTab('actions')">⚡ DM Eylemleri</button>
+        <button class="dm-tab-btn" id="btn-dm-tab-rules" onclick="Adventure.switchDMTab('rules')">📖 D&D 5e Kural Rehberi</button>
+        <button class="dm-tab-btn" id="btn-dm-tab-story" onclick="Adventure.switchDMTab('story')">📢 Sahne Anlatımı</button>
+      </div>
+
+      <!-- TAB 1: DM Eylemleri -->
+      <div class="dm-tab-content active" id="dm-tab-actions">
+        <div class="dm-section">
+          <h4>🩸 Oyuncuya Hasar / Şifa Uygula</h4>
+          <div class="dm-grid-row">
+            <div class="form-group" style="flex:1">
+              <label>Hedef Oyuncu</label>
+              <select id="dm-target-player"></select>
+            </div>
+            <div class="form-group" style="width:110px">
+              <label>Miktar (HP)</label>
+              <input type="number" id="dm-hp-amount" value="5" min="1" max="999">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Kural & Hasar Türü Gerekçesi</label>
+            <input type="text" id="dm-rule-reason" placeholder="Örn: 15 vs AC 13, 1d6+2 Kesici Hasar (Pala)">
+          </div>
+
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-danger btn-block" onclick="Adventure.dmApplyDamage()">💥 Hasar Ver</button>
+            <button class="btn btn-success btn-block" onclick="Adventure.dmApplyHeal()">💚 Can Ver</button>
+          </div>
+        </div>
+
+        <div class="dm-section">
+          <h4>⚠️ Hazır Tehlike & Tuzak Tetikle</h4>
+          <div class="dm-quick-grid">
+            <button class="btn btn-sm btn-secondary" onclick="Adventure.dmTriggerTrap('pit')">🕳️ Çukur Tuzağı (1d6 Ezici, DC 12 Dex)</button>
+            <button class="btn btn-sm btn-secondary" onclick="Adventure.dmTriggerTrap('poison')">🏹 Zehirli İğne (1d4 Delici + 2d4 Zehir, DC 13 Con)</button>
+            <button class="btn btn-sm btn-secondary" onclick="Adventure.dmTriggerTrap('rocks')">🪨 Taş Çığı (2d6 Ezici, DC 14 Dex)</button>
+            <button class="btn btn-sm btn-secondary" onclick="Adventure.dmTriggerTrap('fire')">🔥 Alev Püskürmesi (3d6 Ateş, DC 15 Dex)</button>
+          </div>
+        </div>
+
+        <div class="dm-section">
+          <h4>👹 Düşman Pususu Başlat</h4>
+          <div class="dm-quick-grid">
+            <button class="btn btn-sm btn-secondary" onclick="Adventure.dmSpawnEnemies('goblin')">👺 Goblin Avcıları (HP: 7, AC: 15)</button>
+            <button class="btn btn-sm btn-secondary" onclick="Adventure.dmSpawnEnemies('skeleton')">💀 İskelet Savaşçılar (HP: 13, AC: 13)</button>
+            <button class="btn btn-sm btn-secondary" onclick="Adventure.dmSpawnEnemies('bandit')">🗡️ Haydut Çetesi (HP: 11, AC: 12)</button>
+            <button class="btn btn-sm btn-secondary" onclick="Adventure.dmSpawnEnemies('wolf')">🐺 Vahşi Kurt Sürüsü (HP: 11, AC: 13)</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 2: D&D 5e Kural Rehberi -->
+      <div class="dm-tab-content" id="dm-tab-rules" style="display:none">
+        <div class="rules-cheatsheet">
+          <div class="rule-block">
+            <h5>🎯 Zorluk Dereceleri (DC - Difficulty Class)</h5>
+            <table class="rules-table">
+              <tr><th>Seviye</th><th>DC</th><th>Örnek</th></tr>
+              <tr><td>Çok Kolay</td><td>5</td><td>Halatı fark etmek</td></tr>
+              <tr><td>Kolay</td><td>10</td><td>Gıcırdayan kapıyı zorlamak</td></tr>
+              <tr><td>Orta</td><td>15</td><td>Paslı kilidi açmak / İz sürmek</td></tr>
+              <tr><td>Zor</td><td>20</td><td>Gizli geçidi keşfetmek</td></tr>
+              <tr><td>Çok Zor</td><td>25</td><td>Kraliyet muhafızını ikna etmek</td></tr>
+              <tr><td>İmkansız</td><td>30</td><td>Uçurumdan düşerken iğneye tutunmak</td></tr>
+            </table>
+          </div>
+
+          <div class="rule-block">
+            <h5>💀 Ölüm & Kurtarma Kuralları (Death Saves)</h5>
+            <p><strong>0 HP:</strong> Karakter yere yığılır, Baygın (Unconscious) olur.</p>
+            <p>Her tur başında d20 atılır (Stat bonusu eklenmez):</p>
+            <ul>
+              <li><strong>10 - 19:</strong> 1 Başarı (3 Başarı = Stabil duruma gelir).</li>
+              <li><strong>2 - 9:</strong> 1 Başarısızlık (3 Başarısızlık = Karakter ölür).</li>
+              <li><strong>Nat 20:</strong> Anında 1 HP ile ayağa kalkar!</li>
+              <li><strong>Nat 1:</strong> 2 Başarısızlık birden sayılır!</li>
+            </ul>
+          </div>
+
+          <div class="rule-block">
+            <h5>🧗 Düşme Hasarı (Falling Damage)</h5>
+            <p>Karakter serbest düşüşte her 10 fit (3 metre) için <strong>1d6 Ezici Hasar</strong> alır (Maksimum 20d6) ve Yere Devrilmiş (Prone) duruma geçer.</p>
+          </div>
+
+          <div class="rule-block">
+            <h5>🩸 Hasar Türleri (Damage Types)</h5>
+            <div class="damage-types-tags">
+              <span class="dmg-tag">Kesici (Slashing)</span>
+              <span class="dmg-tag">Delici (Piercing)</span>
+              <span class="dmg-tag">Ezici (Bludgeoning)</span>
+              <span class="dmg-tag">Ateş (Fire)</span>
+              <span class="dmg-tag">Soğuk (Cold)</span>
+              <span class="dmg-tag">Yıldırım (Lightning)</span>
+              <span class="dmg-tag">Zehir (Poison)</span>
+              <span class="dmg-tag">Asit (Acid)</span>
+              <span class="dmg-tag">Nekrotik (Necrotic)</span>
+              <span class="dmg-tag">Işıltılı (Radiant)</span>
+              <span class="dmg-tag">Psişik (Psychic)</span>
+              <span class="dmg-tag">Kuvvet (Force)</span>
+            </div>
+          </div>
+
+          <div class="rule-block">
+            <h5>💤 Dinlenme (Rests)</h5>
+            <p><strong>Kısa Dinlenme (1 Saat):</strong> Can Zarları (Hit Dice) harcanarak (Zar + CON) kadar HP yenilenir.</p>
+            <p><strong>Uzun Dinlenme (8 Saat):</strong> Tüm HP tamamen dolar. Harcanan can zarlarının yarısı yenilenir.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 3: Sahne Anlatımı -->
+      <div class="dm-tab-content" id="dm-tab-story" style="display:none">
+        <div class="form-group">
+          <label>DM Özel Sahne Anlatımı / Olay Mesajı</label>
+          <textarea id="dm-custom-narrative" rows="4" placeholder="DM olarak doğrudan sahneye anlatım yaz... (Örn: Gökyüzü bir anda yarıldı ve gök gürültüsü zindanın taşlarını sarstı...)"></textarea>
+        </div>
+        <button class="btn btn-primary btn-block" onclick="Adventure.dmBroadcastStory()">📢 Hikayeye DM Mesajı Olarak Gönder</button>
       </div>
     </div>
   </div>
