@@ -359,9 +359,10 @@ body::before {
 /* ================= ADVENTURE SCREEN ================= */
 #screen-adventure {
   height: 100vh;
+  height: 100dvh;
   display: flex;
   flex-direction: column;
-  padding-bottom: calc(60px + var(--safe-bottom));
+  padding-bottom: calc(64px + var(--safe-bottom));
   overflow: hidden;
 }
 
@@ -546,19 +547,22 @@ body::before {
 
 .input-row textarea {
   flex: 1;
-  background: rgba(20, 20, 30, 0.9);
+  background: rgba(20, 20, 30, 0.95);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   color: var(--text);
   font-family: var(--font-body);
-  font-size: 15px;
+  font-size: 16px; /* Prevents auto-zoom on Android/iOS */
   padding: 10px 14px;
   resize: none;
-  height: 44px;
+  min-height: 44px;
+  max-height: 120px;
+  -webkit-appearance: none;
 }
 
 .input-row textarea:focus {
   border-color: var(--accent);
+  box-shadow: 0 0 12px var(--accent-glow);
   outline: none;
 }
 
@@ -861,4 +865,131 @@ body::before {
 @keyframes btnPulse {
   0%, 100% { transform: scale(1); box-shadow: 0 0 16px var(--accent-glow); }
   50% { transform: scale(1.03); box-shadow: 0 0 32px var(--accent-glow); }
+}
+
+/* ================= FORM CONTROLS & ANDROID MOBILE ENHANCEMENTS ================= */
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+  text-align: left;
+}
+
+.form-group label {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--accent);
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+input[type="text"],
+input[type="password"],
+input[type="number"],
+select {
+  width: 100%;
+  background: var(--bg-darkest);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 16px; /* 16px prevents mobile auto-zoom */
+  padding: 12px 14px;
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+input[type="text"]:focus,
+input[type="password"]:focus,
+input[type="number"]:focus,
+select:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 12px var(--accent-glow);
+  background: rgba(18, 18, 26, 0.95);
+}
+
+select {
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23e5b842' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  background-size: 16px;
+  padding-right: 40px;
+  cursor: pointer;
+}
+
+.input-with-btn {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.input-with-btn input {
+  flex: 1;
+}
+
+.input-with-btn .btn {
+  flex-shrink: 0;
+}
+
+/* Touch & tap feedback */
+.btn, .quick-actions .btn, .nav-item {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+.btn:active, .quick-actions .btn:active {
+  transform: scale(0.96);
+}
+
+/* Mobile Quick Actions scroll smooth */
+.quick-actions {
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+}
+
+/* Mobile full-width adjustments */
+@media (max-width: 600px) {
+  .modal-card {
+    width: 95%;
+    max-height: 92vh;
+    padding: 18px;
+  }
+
+  .screen-header h2 {
+    font-size: 20px;
+  }
+
+  .adventure-topbar {
+    padding: 10px 14px;
+  }
+
+  .topbar-name {
+    font-size: 14px;
+  }
+
+  .hp-bar {
+    width: 75px;
+  }
+
+  .story-area {
+    padding: 12px;
+  }
+
+  .message-dm {
+    padding: 14px;
+    font-size: 15px;
+    line-height: 1.65;
+  }
+
+  .message-player {
+    padding: 10px 14px;
+    font-size: 14px;
+  }
+
+  .lobby-actions-grid {
+    grid-template-columns: 1fr;
+  }
 }

@@ -95,7 +95,7 @@ const App = {
 
     if (providerEl) providerEl.value = s.apiProvider || 'gemini';
     if (keyEl) keyEl.value = s.apiKey || '';
-    if (modelEl) modelEl.value = s.aiModel || 'gemini-1.5-pro';
+    if (modelEl) modelEl.value = s.aiModel || 'gemini-2.5-flash';
     if (themeEl) themeEl.value = s.theme || 'dark';
 
     this.setTheme(s.theme || 'dark');
@@ -105,7 +105,7 @@ const App = {
     const settings = {
       apiProvider: document.getElementById('ai-provider')?.value || 'gemini',
       apiKey: document.getElementById('api-key')?.value.trim() || '',
-      aiModel: document.getElementById('ai-model')?.value || 'gemini-1.5-pro',
+      aiModel: document.getElementById('ai-model')?.value || 'gemini-2.5-flash',
       theme: document.getElementById('theme-select')?.value || 'dark',
       lang: 'tr'
     };

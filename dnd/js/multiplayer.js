@@ -491,6 +491,7 @@ Ardından sahnenin o anki gerilimini tarif et.`;
   renderPartyList() {
     const list = document.getElementById('party-members-list');
     const sideList = document.getElementById('adventure-party-members');
+    const advLobbyStatus = document.getElementById('adventure-lobby-status');
 
     const html = this.party.map(p => `
       <div class="party-member-chip ${p.isReady ? 'ready' : ''}">
@@ -511,6 +512,25 @@ Ardından sahnenin o anki gerilimini tarif et.`;
 
     if (list) list.innerHTML = html;
     if (sideList) sideList.innerHTML = html;
+    if (advLobbyStatus) {
+      if (this.roomCode) {
+        advLobbyStatus.innerHTML = `
+          <div style="margin-bottom:12px;padding:12px;background:var(--bg-darkest);border:1px solid var(--border);border-radius:var(--radius)">
+            <span class="badge" style="background:var(--accent);color:#000;font-weight:700">ODA KODU</span>
+            <div style="font-family:var(--font-display);font-size:24px;font-weight:800;color:var(--accent);margin:6px 0">${this.roomCode}</div>
+            <button class="btn btn-sm btn-ghost" onclick="Multiplayer.copyRoomLink()">📋 Kodu Kopyala</button>
+          </div>
+          <h4 style="font-size:13px;color:var(--accent);margin-bottom:8px">Maceracı Grubu (${this.party.length} Kişi)</h4>
+          <div class="party-members-list">${html || '<p style="font-size:12px;color:var(--text-muted)">Grupta kimse yok.</p>'}</div>
+        `;
+      } else {
+        advLobbyStatus.innerHTML = `
+          <p style="font-size:13px;color:var(--text-muted);margin-bottom:12px">
+            Şu anda tek oyunculu moddasın. Arkadaşlarınla beraber oynamak için oda oluşturabilir veya var olan odaya katılabilirsin!
+          </p>
+        `;
+      }
+    }
   },
 
   copyRoomLink() {

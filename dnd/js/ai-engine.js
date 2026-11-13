@@ -62,7 +62,7 @@ ${customHook ? `ÖZEL HİKAYE ÇİZGİSİ:\n"${customHook}"\n(Bu hikayeyi temel 
 
     try {
       if (provider === 'gemini') {
-        return await this.callGemini(apiKey, settings.aiModel || 'gemini-1.5-pro', history, userMessage, character, campaignSettings);
+        return await this.callGemini(apiKey, settings.aiModel || 'gemini-2.5-flash', history, userMessage, character, campaignSettings);
       } else if (provider === 'openrouter') {
         return await this.callOpenRouter(apiKey, settings.aiModel || 'anthropic/claude-3.5-sonnet', history, userMessage, character, campaignSettings);
       } else {
@@ -78,11 +78,13 @@ ${customHook ? `ÖZEL HİKAYE ÇİZGİSİ:\n"${customHook}"\n(Bu hikayeyi temel 
 
   // Gemini API
   async callGemini(apiKey, model, history, userMessage, character, campaignSettings) {
-    let modelName = model || 'gemini-1.5-pro';
-    if (!modelName.includes('gemini')) modelName = 'gemini-1.5-pro';
+    let modelName = model || 'gemini-2.5-flash';
+    if (!modelName.includes('gemini') || modelName.includes('1.5') || modelName.includes('2.0') || modelName.includes('2.5-pro')) {
+      modelName = 'gemini-2.5-flash';
+    }
 
-    // Google AI Studio standart API anahtarları 'AIzaSy' ile başlar ve ?key= ile iletilir.
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+    const cleanKey = (apiKey || '').trim();
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${encodeURIComponent(cleanKey)}`;
     const systemInstruction = this.getDMPrompt(character, campaignSettings);
 
     const contents = [];
@@ -112,7 +114,10 @@ ${customHook ? `ÖZEL HİKAYE ÇİZGİSİ:\n"${customHook}"\n(Bu hikayeyi temel 
 
     const response = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-goog-api-key': cleanKey
+      },
       body: JSON.stringify(payload)
     });
 
@@ -212,7 +217,7 @@ ${customHook ? `ÖZEL HİKAYE ÇİZGİSİ:\n"${customHook}"\n(Bu hikayeyi temel 
 
     let notice = '';
     if (errorNotice) {
-      notice = `> *[Not: Google API anahtarın henüz doğrulanmadı. Ayarlar kısmından aistudio.google.com/apikey adresinden aldığın 'AIzaSy...' ile başlayan ücretsiz anahtarı girebilirsin. Şimdilik Yerel DM devrede!]*\n\n`;
+      notice = `> *[Not: Yapay zeka yanıt veremedi veya bağlantı kesildi (${errorNotice}). Yerel DM motoru devreye girdi!]*\n\n`;
     }
 
     // Zar kontrolü gerekiyor mu?
@@ -250,14 +255,14 @@ Ne yapmak istiyorsun?`;
   // Prompt-to-Character (Yapay Zeka Destekli Karakter)
   async createCharacterFromPrompt(userPrompt) {
     const settings = Storage.getSettings();
-    const apiKey = settings.apiKey || this.getApiKey();
+    const apiKey = (settings.apiKey || this.getApiKey() || '').trim();
 
-    if (!apiKey || !apiKey.startsWith('AIza')) {
+    if (!apiKey || apiKey.length < 15) {
       return this.fallbackCharacterParser(userPrompt);
     }
 
     try {
-      const systemPrompt = `D&D 5e kurallarına uygun karakter sayfası oluştur. SADECE JSON döndür:
+      const systemPrompt = `D&D 5e kurallarına uygun karakter sayfası oluştur. SADECE JSON formatında bir nesne döndür:
 {
   "name": "İsim",
   "race": "human|elf|dwarf|halfling|dragonborn|tiefling|gnome|half_elf|half_orc",
@@ -271,21 +276,25 @@ Ne yapmak istiyorsun?`;
   "inventory": ["Eşya 1", "Silah"],
   "spells": []
 }`;
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${apiKey}`;
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(apiKey)}`;
       const res = await fetch(url, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-goog-api-key': apiKey
+        },
         body: JSON.stringify({
           system_instruction: { parts: [{ text: systemPrompt }] },
           contents: [{ parts: [{ text: userPrompt }] }],
           generationConfig: { response_mime_type: "application/json" }
         })
       });
-      if (!res.ok) throw new Error("API call error");
+      if (!res.ok) throw new Error("API call error: " + res.status);
       const d = await res.json();
       const rawText = d.candidates?.[0]?.content?.parts?.[0]?.text;
       return JSON.parse(rawText);
     } catch (e) {
+      console.warn("AI Karakter üretimi fallback motoruna geçti:", e);
       return this.fallbackCharacterParser(userPrompt);
     }
   },
@@ -325,11 +334,19 @@ Ne yapmak istiyorsun?`;
 
   async testConnection(provider, apiKey, model) {
     if (!apiKey) throw new Error("API anahtarı boş olamaz.");
+    const cleanKey = apiKey.trim();
     if (provider === 'gemini') {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model || 'gemini-1.5-pro'}:generateContent?key=${apiKey}`;
+      let modelName = model || 'gemini-2.5-flash';
+      if (!modelName.includes('gemini') || modelName.includes('1.5') || modelName.includes('2.0') || modelName.includes('2.5-pro')) {
+        modelName = 'gemini-2.5-flash';
+      }
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${encodeURIComponent(cleanKey)}`;
       const res = await fetch(url, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-goog-api-key': cleanKey
+        },
         body: JSON.stringify({
           contents: [{ parts: [{ text: 'Selam! Tek cümleyle D&D için hazır olduğunu söyle.' }] }]
         })
