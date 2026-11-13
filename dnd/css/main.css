@@ -829,3 +829,36 @@ body::before {
     grid-template-columns: repeat(3, 1fr);
   }
 }
+
+/* ================= TURN STATUS & DICE GATE ================= */
+.turn-status-banner {
+  background: rgba(132, 94, 194, 0.2);
+  border: 1px solid rgba(132, 94, 194, 0.4);
+  border-radius: var(--radius);
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  margin: 12px 0;
+  animation: bannerPulse 2s infinite ease-in-out;
+}
+
+@keyframes bannerPulse {
+  0%, 100% { border-color: rgba(132, 94, 194, 0.4); box-shadow: none; }
+  50% { border-color: var(--accent); box-shadow: 0 0 12px rgba(229, 184, 66, 0.2); }
+}
+
+.party-member-chip.ready {
+  border-color: var(--success);
+  background: rgba(76, 217, 100, 0.08);
+}
+
+.btn-pulse {
+  animation: btnPulse 1.5s infinite;
+}
+
+@keyframes btnPulse {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 16px var(--accent-glow); }
+  50% { transform: scale(1.03); box-shadow: 0 0 32px var(--accent-glow); }
+}

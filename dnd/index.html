@@ -319,6 +319,7 @@
         <span class="hp-text" id="adv-hp-text">10/10</span>
       </div>
       <div style="display:flex;gap:6px">
+        <button class="btn btn-sm btn-ghost" onclick="document.getElementById('export-modal').style.display='flex'" title="Hikayeyi Kaydet / Dışa Aktar">💾</button>
         <button class="btn btn-sm btn-ghost" onclick="Adventure.showDicePanel()" title="Zar Paneli">🎲</button>
       </div>
     </div>
@@ -468,6 +469,41 @@
         </p>
         <button class="btn btn-primary btn-block" onclick="App.showScreen('screen-lobby'); document.getElementById('adventure-lobby-modal').style.display='none'">
           👥 Odayı Yönet / Yeni Arkadaş Davet Et
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL: ZAR İSTEME KAPISI (DICE GATE) ==================== -->
+  <div class="modal-overlay" id="dice-gate-modal" style="display:none">
+    <div class="modal-card" style="max-width:440px;border-color:var(--accent);box-shadow:0 0 30px var(--accent-glow)">
+      <div class="modal-header">
+        <h3 id="dice-gate-title">🎲 Zar İsteği!</h3>
+      </div>
+      <p id="dice-gate-desc" style="font-size:15px;line-height:1.7;margin-bottom:20px;color:var(--text)"></p>
+      <button class="btn btn-primary btn-block btn-lg btn-pulse" id="btn-dice-gate-roll" style="display:none">
+        🎲 Hemen Zar At!
+      </button>
+      <p style="font-size:12px;color:var(--text-muted);margin-top:10px;text-align:center">Bu zar atılmadan hikaye ilerleyemez.</p>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL: HİKAYEYİ KAYDET / DIŞA AKTAR ==================== -->
+  <div class="modal-overlay" id="export-modal" style="display:none">
+    <div class="modal-card" style="max-width:460px">
+      <div class="modal-header">
+        <h3>💾 Hikayeyi Kaydet & İndir</h3>
+        <button class="btn btn-ghost btn-sm" onclick="document.getElementById('export-modal').style.display='none'">✕</button>
+      </div>
+      <p style="font-size:14px;color:var(--text-muted);margin-bottom:16px">
+        Oynadığınız tüm macerayı, DM anlatımlarını ve grup diyaloglarını cihazına indirip saklayabilirsin:
+      </p>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <button class="btn btn-primary btn-lg" onclick="Adventure.exportCampaign('html'); document.getElementById('export-modal').style.display='none'">
+          📖 Roman Formatında İndir (.html / Okunabilir Günlük)
+        </button>
+        <button class="btn btn-secondary btn-lg" onclick="Adventure.exportCampaign('json'); document.getElementById('export-modal').style.display='none'">
+          📂 Ham Oyun Kaydı İndir (.json / Tüm Veriler)
         </button>
       </div>
     </div>

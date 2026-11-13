@@ -1,11 +1,13 @@
 /* ===================================
-   MAIN APPLICATION ORCHESTRATOR (V2)
-   Mobil Dostu Gezinme, Çok Oyunculu Eşitleme, Özel Kampanya Başlatıcı
+   MAIN APPLICATION ORCHESTRATOR (V3)
+   - Sıra Tabanlı Grup Eylemleri & Tur Durum Barı
+   - DM Zar İsteme Kapısı (Dice Roll Request Gate)
+   - Hikaye Kaydetme & Dışa Aktarma (JSON / HTML Günlük)
    =================================== */
 
 const App = {
   currentScreen: 'screen-loading',
-  currentTab: 'story', // 'story', 'sheet', 'inventory', 'party', 'settings'
+  currentTab: 'story',
 
   async init() {
     this.createParticles();
@@ -22,7 +24,7 @@ const App = {
 
     setTimeout(() => {
       this.showScreen('screen-menu');
-    }, 800);
+    }, 600);
   },
 
   showScreen(screenId) {
@@ -33,14 +35,12 @@ const App = {
       this.currentScreen = screenId;
     }
 
-    // Mobil bottom bar görünürlüğü
     const bottomNav = document.getElementById('mobile-bottom-nav');
     if (bottomNav) {
       bottomNav.style.display = screenId === 'screen-adventure' ? 'flex' : 'none';
     }
   },
 
-  // Mobil Sekme Değiştirici (Bottom Nav)
   switchTab(tab) {
     this.currentTab = tab;
     document.querySelectorAll('.nav-item').forEach(el => {
@@ -50,10 +50,8 @@ const App = {
     const storyArea = document.getElementById('story-area');
     const inputArea = document.querySelector('.adventure-input');
     const sidebar = document.getElementById('adventure-sidebar');
-    const combatPanel = document.getElementById('combat-panel');
     const lobbyOverlay = document.getElementById('adventure-lobby-modal');
 
-    // Varsayılan gizle
     if (sidebar) sidebar.style.display = 'none';
     if (lobbyOverlay) lobbyOverlay.style.display = 'none';
 
@@ -112,7 +110,7 @@ const App = {
       lang: 'tr'
     };
     Storage.saveSettings(settings);
-    alert('Ayarlar kaydedildi! 🛡️');
+    alert('Ayarlar başarıyla kaydedildi! 🛡️');
   },
 
   setTheme(theme) {
@@ -121,15 +119,13 @@ const App = {
 
   toggleApiKeyVisibility() {
     const keyInput = document.getElementById('api-key');
-    if (keyInput) {
-      keyInput.type = keyInput.type === 'password' ? 'text' : 'password';
-    }
+    if (keyInput) keyInput.type = keyInput.type === 'password' ? 'text' : 'password';
   },
 
   async testAI() {
     const resEl = document.getElementById('ai-test-result');
     const provider = document.getElementById('ai-provider')?.value || 'gemini';
-    const key = document.getElementById('api-key')?.value.trim() || AIEngine.getApiKey();
+    const key = document.getElementById('api-key')?.value.trim();
     const model = document.getElementById('ai-model')?.value;
 
     resEl.style.display = 'block';
@@ -142,7 +138,7 @@ const App = {
       resEl.textContent = '✅ Bağlantı Başarılı: ' + msg;
     } catch (e) {
       resEl.className = 'test-result error';
-      resEl.textContent = '❌ Hata: ' + e.message;
+      resEl.textContent = '❌ ' + e.message;
     }
   },
 
@@ -187,29 +183,25 @@ const App = {
 };
 
 /* ===================================
-   ADVENTURE ENGINE (V2)
+   ADVENTURE ENGINE (V3)
    =================================== */
 const Adventure = {
   character: null,
   history: [],
   campaignId: null,
+  isGameStarted: false,
 
   async start(character) {
     this.character = character;
     this.campaignId = 'camp_' + Date.now();
     this.history = [];
-
-    // Kampanya Ayarlarını Aç (Oyuncu nasıl bir hikaye istiyor?)
     this.openCampaignModal();
   },
 
   openCampaignModal() {
     const modal = document.getElementById('campaign-setup-modal');
-    if (modal) {
-      modal.style.display = 'flex';
-    } else {
-      this.launchAdventure();
-    }
+    if (modal) modal.style.display = 'flex';
+    else this.launchAdventure();
   },
 
   closeCampaignModal() {
@@ -224,15 +216,15 @@ const Adventure = {
     Storage.set('campaign_settings', { theme, customHook });
     this.closeCampaignModal();
 
+    this.isGameStarted = true;
     App.showScreen('screen-adventure');
     App.switchTab('story');
     this.updateTopBar();
     this.renderSidebar();
 
-    // Özel Başlangıç Prompt'u
-    let openingPrompt = "Maceraya başlıyoruz. İlk sahneyi ve etrafımdaki ortamı betimle.";
+    let openingPrompt = "Maceraya başlıyoruz. İlk sahneyi ve etrafımızdaki ortamı betimle.";
     if (customHook) {
-      openingPrompt = `Oyuna şu hikaye çizgisiyle başlıyoruz: "${customHook}". Bu durumu ve sahneyi atmosferik olarak betimle ve ilk adımı bana bırak.`;
+      openingPrompt = `Oyuna şu hikaye çizgisiyle başlıyoruz: "${customHook}". Bu durumu ve sahneyi atmosferik olarak betimle ve ilk adımı bize bırak.`;
     }
 
     this.showTypingIndicator();
@@ -240,9 +232,12 @@ const Adventure = {
       const dmReply = await AIEngine.sendMessage([], openingPrompt, this.character);
       this.hideTypingIndicator();
       this.addDMMessage(dmReply);
+      if (Multiplayer.isHost) {
+        Multiplayer.broadcast({ type: 'DM_MESSAGE', text: dmReply });
+      }
     } catch (err) {
       this.hideTypingIndicator();
-      this.addDMMessage(`Sisli gölgelerin uzandığı topraklara adım atıyorsun, **${this.character.name}**. Yazgının çağırdığı bu macerada ilk adımlarını atıyorsun.\n\nNe yapmak istiyorsun?`);
+      this.addDMMessage(`Sisli gölgelerin uzandığı kadim diyarlara adım atıyorsunuz. Yazgının çağırdığı bu macerada ilk adımlarınızı atıyorsunuz.\n\nNe yapmak istiyorsunuz?`);
     }
   },
 
@@ -250,6 +245,7 @@ const Adventure = {
     const char = await Storage.getCharacter(id);
     if (!char) return;
     this.character = char;
+    this.isGameStarted = true;
     App.showScreen('screen-adventure');
     App.switchTab('story');
     this.updateTopBar();
@@ -264,7 +260,7 @@ const Adventure = {
         else this.renderPlayerBubble(m.text);
       });
     } else {
-      this.addDMMessage(`Yeniden hoş geldin, **${this.character.name}**! Maceran kaldığı yerden devam ediyor. Nereye gitmek istersin?`);
+      this.addDMMessage(`Yeniden hoş geldin, **${this.character.name}**! Maceran kaldığı yerden devam ediyor.`);
     }
   },
 
@@ -274,15 +270,8 @@ const Adventure = {
 
     const nameEl = document.getElementById('adv-name');
     const classEl = document.getElementById('adv-class');
-    const acEl = document.getElementById('adv-ac');
-    const lvlEl = document.getElementById('adv-level');
-    const xpEl = document.getElementById('adv-xp');
-
     if (nameEl) nameEl.textContent = c.name;
     if (classEl) classEl.textContent = `${c.raceName || ''} ${c.className || ''}`;
-    if (acEl) acEl.textContent = `🛡️ ${c.ac || 10}`;
-    if (lvlEl) lvlEl.textContent = `⭐ Lv ${c.level || 1}`;
-    if (xpEl) xpEl.textContent = `✨ ${c.xp || 0}`;
 
     const hpText = `${Math.max(0, c.hp)}/${c.maxHp}`;
     const hpTextEl = document.getElementById('adv-hp-text');
@@ -329,56 +318,29 @@ const Adventure = {
       `).join('') || '<p class="text-muted" style="font-size:12px">Çanta boş</p>';
     }
 
-    const spellsDiv = document.getElementById('sidebar-spells');
-    if (spellsDiv) {
-      if (c.spells && c.spells.length > 0) {
-        spellsDiv.innerHTML = c.spells.map(sKey => {
-          const s = Rules.spells[sKey];
-          return s ? `
-            <div class="inv-item">
-              <span class="inv-icon">✨</span>
-              <span class="inv-name">${s.name} (${s.damage || s.school})</span>
-            </div>
-          ` : '';
-        }).join('');
-      } else {
-        spellsDiv.innerHTML = '<p class="text-muted" style="font-size:12px">Büyü yeteneği yok</p>';
-      }
-    }
+    Multiplayer.renderPartyList();
   },
 
-  // Eylem Gönder
-  async sendAction() {
+  // Eylem Gönderme (Tur Havuzuna Ekler)
+  sendAction() {
     const input = document.getElementById('player-input');
-    const actionText = input.value.trim();
+    const actionText = input?.value?.trim();
     if (!actionText) return;
 
     input.value = '';
 
-    // Çok oyunculu kontrol
-    if (Multiplayer.peer && !Multiplayer.isHost) {
-      // Client isek Host'a ilet
+    // Çok oyunculu odada mıyız?
+    if (Multiplayer.peer) {
+      Multiplayer.submitTurnAction(actionText);
+    } else {
+      // Tek oyunculu mod: doğrudan DM'e gönder
       this.addPlayerMessage(actionText);
-      Multiplayer.sendToHost({
-        type: 'ACTION_TRIGGER',
-        playerName: this.character.name,
-        text: actionText
-      });
-      return;
+      this.triggerSinglePlayerDM(actionText);
     }
+  },
 
-    this.addPlayerMessage(actionText);
-
-    // Host veya tek oyunculu ise AI çalıştır
-    if (Multiplayer.isHost) {
-      Multiplayer.broadcast({
-        type: 'CHAT_MESSAGE',
-        playerName: this.character.name,
-        text: actionText
-      });
-    }
-
-    if (!Combat.inCombat && /saldır|dövüş|savaş|atak|kılıç çek/i.test(actionText)) {
+  async triggerSinglePlayerDM(actionText) {
+    if (!Combat.inCombat && /saldır|dövüş|savaş|kılıç çek/i.test(actionText)) {
       Combat.startCombat(['goblin']);
       return;
     }
@@ -387,11 +349,21 @@ const Adventure = {
     try {
       const dmReply = await AIEngine.sendMessage(this.history, actionText, this.character);
       this.hideTypingIndicator();
-      this.addDMMessage(dmReply);
 
-      // Çok oyunculuda herkese yay
-      if (Multiplayer.isHost) {
-        Multiplayer.broadcast({ type: 'DM_MESSAGE', text: dmReply });
+      // Zar isteği var mı kontrol et
+      const diceMatch = dmReply.match(/\[ZAR İSTEĞİ:\s*([^|\]]+)\|\s*([^|\]]+)(?:\|\s*([^|\]]+))?\|\s*([^\]]+)\]/i);
+
+      if (diceMatch) {
+        const targetPlayer = diceMatch[1].trim();
+        const diceType = diceMatch[2].trim();
+        const reason = diceMatch[4]?.trim() || diceMatch[3]?.trim() || 'Kontrol';
+
+        const cleanReply = dmReply.replace(/\[ZAR İSTEĞİ:[^\]]+\]/g, '').trim();
+        this.addDMMessage(cleanReply);
+
+        this.showDiceGatePrompt(targetPlayer, reason, diceType);
+      } else {
+        this.addDMMessage(dmReply);
       }
 
       this.saveCurrentCampaign();
@@ -401,59 +373,211 @@ const Adventure = {
     }
   },
 
-  async sendActionForParty(playerName, actionText) {
-    this.showTypingIndicator();
-    try {
-      const dmReply = await AIEngine.sendMessage(this.history, `[${playerName}]: ${actionText}`, this.character);
-      this.hideTypingIndicator();
-      this.addDMMessage(dmReply);
-      Multiplayer.broadcast({ type: 'DM_MESSAGE', text: dmReply });
-      this.saveCurrentCampaign();
-    } catch (err) {
-      this.hideTypingIndicator();
-      this.addSystemMessage(`⚠️ <strong>DM Hatası:</strong> ${err.message}`);
+  // ================= TUR DURUM GÖSTERGESİ =================
+  setTurnActionStatus(submittedCount, totalCount) {
+    let bar = document.getElementById('turn-status-banner');
+    if (!bar) {
+      bar = document.createElement('div');
+      bar.id = 'turn-status-banner';
+      bar.className = 'turn-status-banner';
+      const container = document.getElementById('story-area');
+      if (container) container.appendChild(bar);
+    }
+
+    bar.style.display = 'flex';
+    bar.innerHTML = `
+      <span>👥 <strong>Tur Eylemleri:</strong> ${submittedCount} / ${totalCount} Oyuncu Yazdı</span>
+      ${Multiplayer.isHost ? `
+        <button class="btn btn-sm btn-primary" onclick="Multiplayer.forceTriggerDMTurn()" style="margin-left:auto">
+          ⚡ Turu Tamamla & DM'e Gönder
+        </button>
+      ` : ''}
+    `;
+    this.scrollToBottom();
+  },
+
+  disableTurnInput(msg) {
+    const input = document.getElementById('player-input');
+    const sendBtn = document.getElementById('btn-send');
+    if (input) {
+      input.disabled = true;
+      input.placeholder = msg || 'Diğer oyuncular bekleniyor...';
+    }
+    if (sendBtn) sendBtn.disabled = true;
+  },
+
+  resetTurnActionInput() {
+    const input = document.getElementById('player-input');
+    const sendBtn = document.getElementById('btn-send');
+    const bar = document.getElementById('turn-status-banner');
+
+    if (input) {
+      input.disabled = false;
+      input.placeholder = 'Ne yapmak istiyorsun? Eylemini yaz...';
+    }
+    if (sendBtn) sendBtn.disabled = false;
+    if (bar) bar.style.display = 'none';
+  },
+
+  // ================= ZAR İSTEME KAPISI (DICE ROLL GATE) =================
+  showDiceGatePrompt(targetPlayerName, reason, diceType) {
+    const modal = document.getElementById('dice-gate-modal');
+    if (!modal) return;
+
+    const isMe = (Adventure.character?.name === targetPlayerName) || !Multiplayer.peer;
+    const titleEl = document.getElementById('dice-gate-title');
+    const descEl = document.getElementById('dice-gate-desc');
+    const btnEl = document.getElementById('btn-dice-gate-roll');
+
+    if (titleEl) titleEl.textContent = `🎲 Zar İsteği: ${targetPlayerName}`;
+    if (descEl) descEl.innerHTML = `Dungeon Master <strong>${targetPlayerName}</strong> için bir zar kontrolü istiyor:<br><strong class="text-gold">${reason} (${diceType})</strong>`;
+
+    if (btnEl) {
+      if (isMe) {
+        btnEl.style.display = 'block';
+        btnEl.textContent = `🎲 Hemen ${diceType} At!`;
+        btnEl.onclick = () => this.executeGateRoll(targetPlayerName, diceType, reason);
+      } else {
+        btnEl.style.display = 'none';
+      }
+    }
+
+    modal.style.display = 'flex';
+  },
+
+  hideDiceGatePrompt() {
+    const modal = document.getElementById('dice-gate-modal');
+    if (modal) modal.style.display = 'none';
+  },
+
+  executeGateRoll(playerName, diceType, reason) {
+    const match = diceType.match(/d(\d+)/i);
+    const sides = match ? parseInt(match[1]) : 20;
+
+    const val = Dice.roll(sides);
+    Dice.addToHistory(`d${sides} (${reason})`, val);
+    Dice.showRollAnimation(sides, val, 'dice-result');
+
+    this.hideDiceGatePrompt();
+    this.addSystemMessage(`🎲 <strong>${playerName}</strong> beklenen zarı attı: <span class="inline-dice ${val === 20 ? 'crit' : val === 1 ? 'fumble' : ''}">${val}</span> (${reason})`);
+
+    if (Multiplayer.peer) {
+      const payload = {
+        type: 'DICE_ROLLED',
+        playerName: playerName,
+        label: `d${sides} (${reason})`,
+        val: val
+      };
+      if (Multiplayer.isHost) {
+        Multiplayer.broadcast(payload);
+        this.resolveDiceGate(playerName, reason, val);
+      } else {
+        Multiplayer.sendToHost(payload);
+      }
+    } else {
+      this.resolveDiceGate(playerName, reason, val);
     }
   },
 
+  async resolveDiceGate(playerName, reason, val) {
+    const followUpPrompt = `[${playerName} ZAR SONUCU: ${val} attı (${reason})]. Lütfen bu zar sonucuna göre sahneyi devam ettir.`;
+    this.showTypingIndicator();
+    try {
+      const dmReply = await AIEngine.sendMessage(this.history, followUpPrompt, this.character);
+      this.hideTypingIndicator();
+      this.addDMMessage(dmReply);
+      if (Multiplayer.isHost) {
+        Multiplayer.broadcast({ type: 'DM_MESSAGE', text: dmReply });
+      }
+      this.saveCurrentCampaign();
+    } catch (e) {
+      this.hideTypingIndicator();
+      this.addSystemMessage(`⚠️ ${e.message}`);
+    }
+  },
+
+  // ================= HİKAYEYİ DIŞA AKTARMA (EXPORT) =================
+  exportCampaign(format = 'html') {
+    const charName = this.character?.name || 'Maceraci';
+    const dateStr = new Date().toISOString().slice(0, 10);
+
+    if (format === 'json') {
+      const exportData = {
+        character: this.character,
+        party: Multiplayer.party,
+        history: this.history,
+        exportedAt: new Date().toISOString()
+      };
+      const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+      this.downloadBlob(blob, `dnd_macera_${charName}_${dateStr}.json`);
+    } else {
+      // HTML Roman / Günlük Formatı
+      let htmlContent = `<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<title>D&D Macera Günlüğü — ${charName}</title>
+<style>
+  body { font-family: 'Georgia', serif; line-height: 1.8; max-width: 800px; margin: 40px auto; padding: 20px; background: #121218; color: #e0dcd0; }
+  h1 { font-family: 'Cinzel', serif; color: #c9a84c; text-align: center; border-bottom: 2px solid #c9a84c; padding-bottom: 10px; }
+  .meta { text-align: center; color: #888; font-size: 14px; margin-bottom: 30px; }
+  .entry { margin-bottom: 24px; padding: 16px; border-radius: 8px; }
+  .entry-dm { background: #1a1a26; border-left: 4px solid #c9a84c; font-style: italic; }
+  .entry-player { background: #222238; border-left: 4px solid #845ec2; font-weight: 500; }
+  .entry-speaker { font-weight: bold; color: #c9a84c; font-size: 12px; text-transform: uppercase; margin-bottom: 6px; }
+</style>
+</head>
+<body>
+<h1>⚔️ D&D Macera Günlüğü</h1>
+<div class="meta">Kahraman: <strong>${charName}</strong> &bull; Tarih: ${new Date().toLocaleDateString('tr-TR')}</div>
+`;
+
+      this.history.forEach(m => {
+        const isDM = m.role === 'dm';
+        htmlContent += `
+<div class="entry ${isDM ? 'entry-dm' : 'entry-player'}">
+  <div class="entry-speaker">${isDM ? '🐉 Dungeon Master' : '🗡️ ' + charName}</div>
+  <div>${m.text.replace(/\n/g, '<br>')}</div>
+</div>`;
+      });
+
+      htmlContent += `</body></html>`;
+      const blob = new Blob([htmlContent], { type: 'text/html' });
+      this.downloadBlob(blob, `dnd_macera_gunlugu_${charName}_${dateStr}.html`);
+    }
+  },
+
+  downloadBlob(blob, filename) {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  },
+
+  // Yardımcı Eylemler
   quickAction(type) {
     const input = document.getElementById('player-input');
+    if (!input) return;
     switch (type) {
       case 'attack':
-        if (Combat.inCombat) {
-          const firstEnemy = Combat.combatants.find(c => !c.isPlayer && c.hp > 0);
-          if (firstEnemy) Combat.playerAttack(firstEnemy.id);
-        } else {
-          input.value = "Silahımı çekip en yakındaki tehdide saldırıyorum!";
-          this.sendAction();
-        }
+        input.value = "Kılıcımı çekip en yakındaki düşmana saldırıyorum!";
         break;
       case 'spell':
-        if (Combat.inCombat) {
-          const firstEnemy = Combat.combatants.find(c => !c.isPlayer && c.hp > 0);
-          if (firstEnemy) Combat.playerCastSpell(firstEnemy.id);
-        } else {
-          input.value = "Etrafı aydınlatmak ve tehlikeleri sezmek için bir büyü yapıyorum.";
-          this.sendAction();
-        }
+        input.value = "Etrafı aydınlatıp enerjiyi yönlendirmek için bir büyü yapıyorum.";
         break;
       case 'investigate':
-        const wisMod = Rules.getModifier(this.character.stats.wis);
-        const roll = Dice.rollSkillCheck(wisMod);
-        this.addSystemMessage(`🔍 <strong>Algı / Araştırma Zarı:</strong> d20 (${roll.natural}) + ${wisMod} = <strong>${roll.total}</strong>`);
-        input.value = `Etrafımı dikkatlice inceliyorum ve gizli şeyleri arıyorum (Algı zarı attım: ${roll.total}).`;
-        this.sendAction();
-        break;
-      case 'talk':
-        input.value = "Dostane bir ses tonuyla sesleniyorum: 'Kim var orada? Size zarar vermeye niyetim yok!'";
+        input.value = "Etraftaki gizli geçitleri, tuzakları ve ipuçlarını dikkatlice araştırıyorum.";
         break;
       case 'stealth':
-        const dexMod = Rules.getModifier(this.character.stats.dex);
-        const stealthRoll = Dice.rollSkillCheck(dexMod);
-        this.addSystemMessage(`🥷 <strong>Gizlenme (Stealth) Zarı:</strong> d20 (${stealthRoll.natural}) + ${dexMod} = <strong>${stealthRoll.total}</strong>`);
-        input.value = `Gölgelere sığınıp sessizce ilerliyorum (Gizlenme zarı attım: ${stealthRoll.total}).`;
-        this.sendAction();
+        input.value = "Gölgelerin arasına süzülüp nefesimi tutarak sessizce ilerliyorum.";
+        break;
+      case 'talk':
+        input.value = "Gözlerimi karşımdakine dikip temkinli bir şekilde konuşmaya başlıyorum.";
         break;
     }
+    this.sendAction();
   },
 
   showDicePanel() {
@@ -470,13 +594,12 @@ const Adventure = {
     Dice.showRollAnimation(sides, val, 'dice-result');
     Dice.renderHistory('dice-history');
 
-    const msg = `🎲 <strong>${this.character?.name || 'Oyuncu'}</strong> zar attı: d${sides} sonucu: <span class="inline-dice ${val === 20 ? 'crit' : val === 1 ? 'fumble' : ''}">${val}</span>`;
+    const msg = `🎲 <strong>${this.character?.name || 'Oyuncu'}</strong> zar attı: d${sides} = <span class="inline-dice ${val === 20 ? 'crit' : val === 1 ? 'fumble' : ''}">${val}</span>`;
     this.addSystemMessage(msg);
 
-    // Çok oyunculu eşitleme
     if (Multiplayer.peer) {
       const payload = {
-        type: 'DICE_ROLL',
+        type: 'DICE_ROLLED',
         playerName: this.character.name,
         label: `d${sides}`,
         val: val
@@ -541,7 +664,7 @@ const Adventure = {
       <div class="typing-dot"></div>
       <div class="typing-dot"></div>
       <div class="typing-dot"></div>
-      <span style="font-size:12px;color:var(--text-muted);margin-left:6px">Dungeon Master yazıyor...</span>
+      <span style="font-size:12px;color:var(--text-muted);margin-left:6px">Dungeon Master değerlendiriyor...</span>
     `;
     container.appendChild(indicator);
     this.scrollToBottom();
@@ -555,9 +678,7 @@ const Adventure = {
   scrollToBottom() {
     const area = document.getElementById('story-area');
     if (area) {
-      setTimeout(() => {
-        area.scrollTop = area.scrollHeight;
-      }, 50);
+      setTimeout(() => { area.scrollTop = area.scrollHeight; }, 40);
     }
   },
 
