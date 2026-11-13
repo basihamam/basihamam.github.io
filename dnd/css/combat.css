@@ -1,0 +1,206 @@
+/* ===================================
+   COMBAT SPECIFIC STYLES
+   =================================== */
+
+.combat-panel {
+  width: 280px;
+  background: var(--bg-dark);
+  border-left: 1px solid var(--border);
+  padding: 16px;
+  overflow-y: auto;
+  flex-shrink: 0;
+}
+
+.combat-header h4 {
+  font-family: var(--font-display);
+  color: var(--danger);
+  font-size: 16px;
+  margin-bottom: 12px;
+  text-shadow: 0 0 10px rgba(214,69,69,0.3);
+}
+
+/* Initiative Tracker */
+.initiative-tracker {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.init-entry {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 13px;
+  transition: all var(--transition);
+}
+
+.init-entry.active-turn {
+  border-color: var(--accent);
+  background: rgba(201,168,76,0.1);
+  box-shadow: 0 0 10px var(--border-glow);
+}
+
+.init-entry.enemy {
+  border-color: rgba(214,69,69,0.3);
+}
+
+.init-order {
+  font-family: var(--font-display);
+  font-size: 16px;
+  color: var(--accent);
+  width: 24px;
+  text-align: center;
+}
+
+.init-name {
+  flex: 1;
+  font-weight: 600;
+}
+
+.init-hp-mini {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* Enemy Cards */
+.enemy-card {
+  background: var(--bg-panel);
+  border: 1px solid rgba(214,69,69,0.3);
+  border-radius: var(--radius-lg);
+  padding: 14px;
+  margin-bottom: 10px;
+}
+
+.enemy-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.enemy-name {
+  font-family: var(--font-display);
+  font-size: 14px;
+  color: var(--danger);
+}
+
+.enemy-cr {
+  font-size: 11px;
+  color: var(--text-muted);
+  background: var(--bg-darkest);
+  padding: 2px 6px;
+  border-radius: var(--radius-round);
+}
+
+.enemy-hp-bar {
+  width: 100%;
+  height: 10px;
+  background: var(--bg-darkest);
+  border-radius: var(--radius-round);
+  overflow: hidden;
+  margin-bottom: 6px;
+  border: 1px solid var(--border);
+}
+
+.enemy-hp-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--danger), #ff8844);
+  transition: width 0.5s ease;
+}
+
+.enemy-hp-text {
+  font-size: 12px;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.enemy-stats-mini {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+.enemy-stats-mini span {
+  background: var(--bg-darkest);
+  padding: 2px 6px;
+  border-radius: 3px;
+}
+
+/* Combat Actions */
+.combat-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.combat-actions .btn {
+  justify-content: flex-start;
+  font-size: 13px;
+}
+
+/* Damage/Heal Numbers */
+.damage-number {
+  position: absolute;
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 900;
+  color: var(--danger);
+  animation: damageFloat 1.5s ease-out forwards;
+  pointer-events: none;
+  z-index: 50;
+}
+
+.heal-number {
+  color: var(--success);
+}
+
+@keyframes damageFloat {
+  0% { opacity: 1; transform: translateY(0) scale(1); }
+  100% { opacity: 0; transform: translateY(-60px) scale(1.5); }
+}
+
+/* Combat Log */
+.combat-log {
+  margin-top: 12px;
+  max-height: 150px;
+  overflow-y: auto;
+}
+
+.combat-log-entry {
+  font-size: 12px;
+  padding: 3px 0;
+  color: var(--text-muted);
+  border-bottom: 1px solid rgba(255,255,255,0.03);
+}
+
+.combat-log-entry .dmg { color: var(--danger); font-weight: 700; }
+.combat-log-entry .heal { color: var(--success); font-weight: 700; }
+.combat-log-entry .miss { color: var(--text-dim); font-style: italic; }
+
+@media (max-width: 768px) {
+  .combat-panel {
+    position: fixed;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    z-index: 100;
+    width: 280px;
+    transform: translateX(100%);
+    transition: transform 0.3s ease;
+    box-shadow: -4px 0 20px rgba(0,0,0,0.5);
+  }
+  
+  .combat-panel.open {
+    transform: translateX(0);
+  }
+}
