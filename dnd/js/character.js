@@ -1,20 +1,21 @@
 /* ===================================
-   CHARACTER CREATION & MANAGEMENT MODULE
-   Karakter sihirbazı, portre yükleme, stat hesaplama
+   CHARACTER CREATION & MANAGEMENT MODULE (V2)
+   Prompt-to-Character (AI), Manuel Sihirbaz, Portre & Statlar
    =================================== */
 
 const CharacterCreate = {
   currentStep: 1,
+  mode: 'wizard', // 'wizard' veya 'ai-prompt'
   data: {
     id: null,
     name: '',
     portrait: null,
-    race: null,
-    raceName: '',
-    class: null,
-    className: '',
+    race: 'human',
+    raceName: 'İnsan',
+    class: 'fighter',
+    className: 'Savaşçı',
     stats: { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 },
-    statMethod: 'standard', // 'standard', 'pointbuy', 'roll'
+    statMethod: 'standard',
     pointBuyRemaining: 27,
     background: 'soldier',
     backstory: '',
@@ -36,9 +37,157 @@ const CharacterCreate = {
     this.initStats();
   },
 
+  // Mod Değiştir (AI ile Yarat vs Adım Adım)
+  setCreateMode(mode) {
+    this.mode = mode;
+    const aiTab = document.getElementById('tab-create-ai');
+    const wizardTab = document.getElementById('tab-create-wizard');
+    const aiView = document.getElementById('char-create-ai-view');
+    const wizardView = document.getElementById('char-create-wizard-view');
+
+    if (aiTab) aiTab.classList.toggle('active', mode === 'ai-prompt');
+    if (wizardTab) wizardTab.classList.toggle('active', mode === 'wizard');
+    if (aiView) aiView.style.display = mode === 'ai-prompt' ? 'block' : 'none';
+    if (wizardView) wizardView.style.display = mode === 'wizard' ? 'block' : 'none';
+  },
+
+  // 1. AI ile Karakter Yarat (Prompt-to-Character)
+  async generateFromPrompt() {
+    const promptInput = document.getElementById('ai-char-prompt');
+    const promptText = promptInput?.value?.trim();
+    if (!promptText) {
+      alert("Lütfen karakterini tarif eden bir metin yaz!");
+      return;
+    }
+
+    const btn = document.getElementById('btn-ai-generate-char');
+    const statusEl = document.getElementById('ai-char-status');
+    if (btn) btn.disabled = true;
+    if (statusEl) {
+      statusEl.style.display = 'block';
+      statusEl.innerHTML = `<span class="loading-spin">🔮</span> Yapay zeka karakterini D&D 5e kurallarına göre inşa ediyor...`;
+    }
+
+    try {
+      const generated = await AIEngine.createCharacterFromPrompt(promptText);
+
+      // Veriyi aktar
+      this.data.name = generated.name || 'Maceracı';
+      this.data.race = generated.race || 'human';
+      this.data.raceName = generated.raceName || (Rules.races[this.data.race]?.name || 'İnsan');
+      this.data.class = generated.class || 'fighter';
+      this.data.className = generated.className || (Rules.classes[this.data.class]?.name || 'Savaşçı');
+      this.data.stats = generated.stats || { str: 14, dex: 12, con: 14, int: 10, wis: 10, cha: 10 };
+      this.data.background = generated.background || 'soldier';
+      this.data.alignment = generated.alignment || 'TN';
+      this.data.backstory = generated.backstory || promptText;
+      this.data.spells = generated.spells || [];
+
+      // Önizleme Ekranını Aç
+      this.renderAIGeneratedPreview();
+      if (statusEl) statusEl.style.display = 'none';
+    } catch (e) {
+      alert("Karakter üretilirken bir hata oluştu: " + e.message);
+      if (statusEl) statusEl.style.display = 'none';
+    } finally {
+      if (btn) btn.disabled = false;
+    }
+  },
+
+  renderAIGeneratedPreview() {
+    const previewBox = document.getElementById('ai-char-preview');
+    if (!previewBox) return;
+
+    const conMod = Rules.getModifier(this.data.stats.con);
+    const dexMod = Rules.getModifier(this.data.stats.dex);
+    const hp = Rules.getMaxHP(this.data.class, 1, conMod);
+    const ac = Rules.getAC(dexMod);
+
+    previewBox.style.display = 'block';
+    previewBox.innerHTML = `
+      <div class="generated-char-sheet">
+        <div class="sheet-top">
+          <div class="portrait-mini" id="ai-preview-portrait-box" onclick="document.getElementById('ai-portrait-input').click()">
+            ${this.data.portrait ? `<img src="${this.data.portrait}">` : '📷<br><span style="font-size:10px">Fotoğraf Ekle</span>'}
+            <input type="file" id="ai-portrait-input" accept="image/*" hidden onchange="CharacterCreate.handleAIPortrait(event)">
+          </div>
+          <div class="sheet-head">
+            <h3>${this.data.name}</h3>
+            <p class="text-gold">${this.data.raceName} &bull; ${this.data.className} &bull; ${this.data.alignment}</p>
+            <p style="font-size:12px;color:var(--text-muted)">❤️ ${hp} HP &bull; 🛡️ ${ac} AC</p>
+          </div>
+        </div>
+
+        <div class="preview-stats-row">
+          ${Object.entries(this.data.stats).map(([k, v]) => `
+            <div class="stat-pill">
+              <span class="lbl">${k.toUpperCase()}</span>
+              <span class="val">${v}</span>
+              <span class="mod">(${Rules.getModifierStr(v)})</span>
+            </div>
+          `).join('')}
+        </div>
+
+        <div class="preview-backstory">
+          <strong>Hikaye & Arkaplan:</strong>
+          <p>${this.data.backstory}</p>
+        </div>
+
+        <div class="sheet-confirm-bar">
+          <button class="btn btn-primary btn-lg" onclick="CharacterCreate.confirmAICharacter()">
+            🗡️ Bu Karakterle Maceraya Başla!
+          </button>
+          <button class="btn btn-secondary" onclick="CharacterCreate.transferToWizard()">
+            🛠️ Detayları Düzenle (Sihirbaza Aktar)
+          </button>
+        </div>
+      </div>
+    `;
+  },
+
+  handleAIPortrait(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      this.data.portrait = ev.target.result;
+      this.renderAIGeneratedPreview();
+    };
+    reader.readAsDataURL(file);
+  },
+
+  async confirmAICharacter() {
+    const conMod = Rules.getModifier(this.data.stats.con);
+    const dexMod = Rules.getModifier(this.data.stats.dex);
+    this.data.maxHp = Rules.getMaxHP(this.data.class, 1, conMod);
+    this.data.hp = this.data.maxHp;
+    this.data.ac = Rules.getAC(dexMod);
+
+    this.data.inventory = [
+      { name: 'Sırt Çantası', qty: 1, icon: '🎒' },
+      { name: 'Maceracı Rasyonu', qty: 5, icon: '🍞' },
+      { name: 'Matara', qty: 1, icon: '💧' },
+      { name: 'Altın Kese', qty: 20, icon: '🪙' }
+    ];
+
+    this.data.id = 'char_' + Date.now();
+    await Storage.saveCharacter(this.data);
+    Adventure.start(this.data);
+  },
+
+  transferToWizard() {
+    this.setCreateMode('wizard');
+    document.getElementById('char-name').value = this.data.name;
+    this.selectRace(this.data.race);
+    this.selectClass(this.data.class);
+    this.renderStatsGrid();
+    document.getElementById('char-backstory').value = this.data.backstory;
+    this.nextStep(1);
+  },
+
+  // 2. Manuel Adım Adım Sihirbaz
   nextStep(step) {
     if (step > this.currentStep) {
-      // Doğrulama
       if (this.currentStep === 1) {
         const name = document.getElementById('char-name').value.trim();
         if (!name) {
@@ -59,7 +208,6 @@ const CharacterCreate = {
       }
     }
 
-    // Ekran adımlarını güncelle
     for (let i = 1; i <= 5; i++) {
       const stepEl = document.getElementById(`char-step-${i}`);
       if (stepEl) stepEl.style.display = i === step ? 'block' : 'none';
@@ -74,7 +222,6 @@ const CharacterCreate = {
     this.currentStep = step;
   },
 
-  // Portre Yükleme
   setupPortraitUpload() {
     const uploadArea = document.getElementById('portrait-upload');
     const input = document.getElementById('portrait-input');
@@ -88,16 +235,10 @@ const CharacterCreate = {
       const file = e.target.files?.[0];
       if (!file) return;
 
-      if (!file.type.startsWith('image/')) {
-        alert('Lütfen geçerli bir görsel dosyası seçin!');
-        return;
-      }
-
       const reader = new FileReader();
       reader.onload = (ev) => {
         const img = new Image();
         img.onload = () => {
-          // Resmi canvas ile optimize et / crop et
           const canvas = document.createElement('canvas');
           const size = 300;
           canvas.width = size;
@@ -120,7 +261,6 @@ const CharacterCreate = {
     };
   },
 
-  // Irkları Listele
   renderRaces() {
     const grid = document.getElementById('race-grid');
     if (!grid) return;
@@ -148,18 +288,14 @@ const CharacterCreate = {
       c.classList.toggle('selected', c.dataset.race === key);
     });
 
-    // Bilgi panelini aç
     const info = document.getElementById('race-info');
     document.getElementById('race-info-name').textContent = `${race.icon} ${race.name}`;
     document.getElementById('race-info-desc').textContent = race.desc;
 
-    // Bonuslar
     const bonuses = Object.entries(race.bonuses || {})
       .map(([st, val]) => `<strong>${st.toUpperCase()} +${val}</strong>`)
       .join(', ');
     document.getElementById('race-info-bonuses').innerHTML = `<p style="margin-top:8px">✨ <strong>Yetenek Bonusları:</strong> ${bonuses || 'Özel'}</p>`;
-
-    // Özellikler
     document.getElementById('race-info-traits').innerHTML = `<p style="margin-top:6px">🧬 <strong>Özellikler:</strong> ${race.traits.join(', ')}</p>`;
     info.style.display = 'block';
 
@@ -167,7 +303,6 @@ const CharacterCreate = {
     if (nextBtn) nextBtn.disabled = false;
   },
 
-  // Sınıfları Listele
   renderClasses() {
     const grid = document.getElementById('class-grid');
     if (!grid) return;
@@ -200,7 +335,7 @@ const CharacterCreate = {
     document.getElementById('class-info-desc').textContent = cls.desc;
 
     document.getElementById('class-info-details').innerHTML = `
-      <p style="margin-top:8px">❤️ <strong>Can Zarı (Hit Die):</strong> d${cls.hitDie}</p>
+      <p style="margin-top:8px">❤️ <strong>Can Zarı:</strong> d${cls.hitDie}</p>
       <p style="margin-top:4px">🛡️ <strong>Kurtarma Atışları:</strong> ${cls.savingThrows.map(s => s.toUpperCase()).join(', ')}</p>
       <p style="margin-top:4px">⚡ <strong>1. Seviye Özellikleri:</strong> ${cls.features[1]?.join(', ') || 'Yok'}</p>
     `;
@@ -210,7 +345,6 @@ const CharacterCreate = {
     if (nextBtn) nextBtn.disabled = false;
   },
 
-  // Stat Dağıtımı
   initStats() {
     this.data.stats = { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 };
     this.setStatMethod('standard');
@@ -284,9 +418,9 @@ const CharacterCreate = {
     const summary = document.getElementById('stat-summary');
     if (summary) {
       if (this.data.statMethod === 'pointbuy') {
-        summary.innerHTML = `<p style="font-size:13px;color:var(--accent);margin-top:10px">Kalan Puan Bütçesi: <strong>${this.data.pointBuyRemaining} / 27</strong></p>`;
+        summary.innerHTML = `<p style="font-size:13px;color:var(--accent);margin-top:10px">Kalan Puan: <strong>${this.data.pointBuyRemaining} / 27</strong></p>`;
       } else if (this.data.statMethod === 'roll') {
-        summary.innerHTML = `<button class="btn btn-sm btn-secondary" onclick="CharacterCreate.rollAllStats()" style="margin-top:10px">🎲 Zarları Yeniden At (4d6 drop lowest)</button>`;
+        summary.innerHTML = `<button class="btn btn-sm btn-secondary" onclick="CharacterCreate.rollAllStats()" style="margin-top:10px">🎲 Zarları Yeniden At</button>`;
       } else {
         summary.innerHTML = '';
       }
@@ -312,35 +446,11 @@ const CharacterCreate = {
     this.renderStatsGrid();
   },
 
-  // Backstory Üretici
-  async generateBackstory() {
-    const btn = event?.target;
-    if (btn) btn.disabled = true;
-    const bg = document.getElementById('char-background').value;
-    const name = this.data.name;
-    const race = this.data.raceName || 'İnsan';
-    const cls = this.data.className || 'Savaşçı';
-
-    const textEl = document.getElementById('char-backstory');
-    textEl.value = "Yapay zeka hikayeyi dokuyor...";
-
-    try {
-      const generated = await AIEngine.generateBackstory(race, cls, bg, name);
-      textEl.value = generated;
-    } catch (e) {
-      textEl.value = `${name}, ${race} soyundan gelen bir ${cls}. Macera dolu bir arayış içinde.`;
-    } finally {
-      if (btn) btn.disabled = false;
-    }
-  },
-
-  // Karakteri Sonuçlandır ve Kaydet
   async finalize() {
     this.data.background = document.getElementById('char-background').value;
     this.data.backstory = document.getElementById('char-backstory').value;
     this.data.alignment = document.getElementById('char-alignment').value;
 
-    // Irk bonuslarını kalıcı olarak statlara ekle
     const raceBonus = Rules.races[this.data.race]?.bonuses || {};
     for (const [k, v] of Object.entries(raceBonus)) {
       this.data.stats[k] = (this.data.stats[k] || 10) + v;
@@ -349,16 +459,14 @@ const CharacterCreate = {
     const conMod = Rules.getModifier(this.data.stats.con);
     const dexMod = Rules.getModifier(this.data.stats.dex);
 
-    // HP ve AC hesaplama
     this.data.maxHp = Rules.getMaxHP(this.data.class, 1, conMod);
     this.data.hp = this.data.maxHp;
     this.data.ac = Rules.getAC(dexMod);
 
-    // Başlangıç Envanteri
     const clsData = Rules.classes[this.data.class];
     this.data.inventory = [
       { name: 'Sırt Çantası', qty: 1, icon: '🎒' },
-      { name: 'Maceracı Rasyonu (1 Gün)', qty: 5, icon: '🍞' },
+      { name: 'Maceracı Rasyonu', qty: 5, icon: '🍞' },
       { name: 'Su Matarası', qty: 1, icon: '💧' },
       { name: 'Meşale', qty: 2, icon: '🔥' },
       { name: 'Altın Kese', qty: 15, icon: '🪙' }
@@ -370,17 +478,13 @@ const CharacterCreate = {
       });
     }
 
-    // Büyücü ise temel büyüler
     if (clsData?.spellcaster) {
       this.data.spells = ['fire_bolt', 'magic_missile', 'shield'];
       this.data.spellSlots = [2, 0, 0, 0, 0, 0, 0, 0, 0];
     }
 
-    // ID Ata ve Kaydet
     this.data.id = 'char_' + Date.now();
     await Storage.saveCharacter(this.data);
-
-    // Macerayı Başlat!
     Adventure.start(this.data);
   }
 };

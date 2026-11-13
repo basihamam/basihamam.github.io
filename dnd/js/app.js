@@ -1,32 +1,30 @@
 /* ===================================
-   MAIN APPLICATION ORCHESTRATOR
-   Ekran geçişleri, Macera döngüsü, UI bağlama
+   MAIN APPLICATION ORCHESTRATOR (V2)
+   Mobil Dostu Gezinme, Çok Oyunculu Eşitleme, Özel Kampanya Başlatıcı
    =================================== */
 
 const App = {
   currentScreen: 'screen-loading',
+  currentTab: 'story', // 'story', 'sheet', 'inventory', 'party', 'settings'
 
   async init() {
     this.createParticles();
     this.loadSettings();
 
-    // Veritabanını hazırla
     try {
       await Storage.openDB();
     } catch (e) {
       console.warn("IndexedDB açılamadı:", e);
     }
 
-    // Karakter oluşturma sihirbazını başlat
     CharacterCreate.init();
+    Multiplayer.init();
 
-    // 1 saniye sonra menüye geç
     setTimeout(() => {
       this.showScreen('screen-menu');
-    }, 1200);
+    }, 800);
   },
 
-  // Ekran Değiştirici
   showScreen(screenId) {
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
     const target = document.getElementById(screenId);
@@ -34,14 +32,53 @@ const App = {
       target.classList.add('active');
       this.currentScreen = screenId;
     }
+
+    // Mobil bottom bar görünürlüğü
+    const bottomNav = document.getElementById('mobile-bottom-nav');
+    if (bottomNav) {
+      bottomNav.style.display = screenId === 'screen-adventure' ? 'flex' : 'none';
+    }
   },
 
-  // Partikül Efekti (Ana Menü Arkaplanı)
+  // Mobil Sekme Değiştirici (Bottom Nav)
+  switchTab(tab) {
+    this.currentTab = tab;
+    document.querySelectorAll('.nav-item').forEach(el => {
+      el.classList.toggle('active', el.dataset.tab === tab);
+    });
+
+    const storyArea = document.getElementById('story-area');
+    const inputArea = document.querySelector('.adventure-input');
+    const sidebar = document.getElementById('adventure-sidebar');
+    const combatPanel = document.getElementById('combat-panel');
+    const lobbyOverlay = document.getElementById('adventure-lobby-modal');
+
+    // Varsayılan gizle
+    if (sidebar) sidebar.style.display = 'none';
+    if (lobbyOverlay) lobbyOverlay.style.display = 'none';
+
+    if (tab === 'story') {
+      if (storyArea) storyArea.style.display = 'block';
+      if (inputArea) inputArea.style.display = 'block';
+    } else if (tab === 'sheet') {
+      if (sidebar) {
+        sidebar.style.display = 'block';
+        sidebar.classList.add('mobile-full');
+      }
+      Adventure.renderSidebar();
+    } else if (tab === 'party') {
+      if (lobbyOverlay) lobbyOverlay.style.display = 'flex';
+      Multiplayer.renderPartyList();
+    } else if (tab === 'settings') {
+      this.showScreen('screen-settings');
+    }
+  },
+
   createParticles() {
     const container = document.getElementById('particles');
     if (!container) return;
-
-    for (let i = 0; i < 25; i++) {
+    container.innerHTML = '';
+    for (let i = 0; i < 20; i++) {
       const p = document.createElement('div');
       p.className = 'particle';
       p.style.left = `${Math.random() * 100}%`;
@@ -51,32 +88,28 @@ const App = {
     }
   },
 
-  // Ayarları Yükle
   loadSettings() {
     const s = Storage.getSettings();
     const providerEl = document.getElementById('ai-provider');
     const keyEl = document.getElementById('api-key');
     const modelEl = document.getElementById('ai-model');
     const themeEl = document.getElementById('theme-select');
-    const langEl = document.getElementById('lang-select');
 
     if (providerEl) providerEl.value = s.apiProvider || 'gemini';
     if (keyEl) keyEl.value = s.apiKey || '';
-    if (modelEl) modelEl.value = s.aiModel || 'gemini-2.0-flash';
+    if (modelEl) modelEl.value = s.aiModel || 'gemini-1.5-pro';
     if (themeEl) themeEl.value = s.theme || 'dark';
-    if (langEl) langEl.value = s.lang || 'tr';
 
     this.setTheme(s.theme || 'dark');
   },
 
-  // Ayarları Kaydet
   saveSettings() {
     const settings = {
       apiProvider: document.getElementById('ai-provider')?.value || 'gemini',
       apiKey: document.getElementById('api-key')?.value.trim() || '',
-      aiModel: document.getElementById('ai-model')?.value || 'gemini-2.0-flash',
+      aiModel: document.getElementById('ai-model')?.value || 'gemini-1.5-pro',
       theme: document.getElementById('theme-select')?.value || 'dark',
-      lang: document.getElementById('lang-select')?.value || 'tr'
+      lang: 'tr'
     };
     Storage.saveSettings(settings);
     alert('Ayarlar kaydedildi! 🛡️');
@@ -93,7 +126,6 @@ const App = {
     }
   },
 
-  // AI Bağlantısını Test Et
   async testAI() {
     const resEl = document.getElementById('ai-test-result');
     const provider = document.getElementById('ai-provider')?.value || 'gemini';
@@ -114,7 +146,6 @@ const App = {
     }
   },
 
-  // Kayıtlı Karakterleri Listele
   async loadSavedCharacters() {
     this.showScreen('screen-saved-chars');
     const list = document.getElementById('saved-chars-list');
@@ -156,46 +187,76 @@ const App = {
 };
 
 /* ===================================
-   ADVENTURE ENGINE (MAIN PLAYGROUND)
+   ADVENTURE ENGINE (V2)
    =================================== */
 const Adventure = {
   character: null,
-  history: [], // { role: 'dm'|'player', text: '' }
+  history: [],
   campaignId: null,
 
-  // Yeni Karakterle Başla
   async start(character) {
     this.character = character;
     this.campaignId = 'camp_' + Date.now();
     this.history = [];
 
+    // Kampanya Ayarlarını Aç (Oyuncu nasıl bir hikaye istiyor?)
+    this.openCampaignModal();
+  },
+
+  openCampaignModal() {
+    const modal = document.getElementById('campaign-setup-modal');
+    if (modal) {
+      modal.style.display = 'flex';
+    } else {
+      this.launchAdventure();
+    }
+  },
+
+  closeCampaignModal() {
+    const modal = document.getElementById('campaign-setup-modal');
+    if (modal) modal.style.display = 'none';
+  },
+
+  async launchAdventure() {
+    const theme = document.getElementById('campaign-theme')?.value || 'grimdark';
+    const customHook = document.getElementById('campaign-custom-hook')?.value.trim() || '';
+
+    Storage.set('campaign_settings', { theme, customHook });
+    this.closeCampaignModal();
+
     App.showScreen('screen-adventure');
+    App.switchTab('story');
     this.updateTopBar();
     this.renderSidebar();
 
-    // Hoş geldin mesajı ve başlangıç hikayesi
-    const welcomeText = `Karanlık gölgelerin uzandığı, rüzgarın fısıltılarla estiği topraklara adım atıyorsun, **${this.character.name}**. 
-${this.character.raceName} soyundan gelen bir ${this.character.className} olarak, yazgının seni çağırdığı bu kadim macerada ilk adımlarını atıyorsun.
+    // Özel Başlangıç Prompt'u
+    let openingPrompt = "Maceraya başlıyoruz. İlk sahneyi ve etrafımdaki ortamı betimle.";
+    if (customHook) {
+      openingPrompt = `Oyuna şu hikaye çizgisiyle başlıyoruz: "${customHook}". Bu durumu ve sahneyi atmosferik olarak betimle ve ilk adımı bana bırak.`;
+    }
 
-Önünde ikiye ayrılan eski bir taş yol var: Sol taraf çürük meşe ağaçlarıyla kaplı fısıltılı bir ormana, sağ taraf ise kayalıkların ardında dumanı tüten terk edilmiş bir gözetleme kulesine uzanıyor.
-
-Ne yapmak istiyorsun?`;
-
-    this.addDMMessage(welcomeText);
+    this.showTypingIndicator();
+    try {
+      const dmReply = await AIEngine.sendMessage([], openingPrompt, this.character);
+      this.hideTypingIndicator();
+      this.addDMMessage(dmReply);
+    } catch (err) {
+      this.hideTypingIndicator();
+      this.addDMMessage(`Sisli gölgelerin uzandığı topraklara adım atıyorsun, **${this.character.name}**. Yazgının çağırdığı bu macerada ilk adımlarını atıyorsun.\n\nNe yapmak istiyorsun?`);
+    }
   },
 
-  // Kayıtlı Karakteri Yükle ve Devam Et
   async startFromSaved(id) {
     const char = await Storage.getCharacter(id);
     if (!char) return;
     this.character = char;
     App.showScreen('screen-adventure');
+    App.switchTab('story');
     this.updateTopBar();
     this.renderSidebar();
 
-    // Önceki kayıtlı hikayeyi yüklemeyi dene
     const camp = await Storage.getCampaign('camp_' + id);
-    if (camp && camp.history) {
+    if (camp && camp.history && camp.history.length > 0) {
       this.history = camp.history;
       document.getElementById('story-messages').innerHTML = '';
       this.history.forEach(m => {
@@ -203,40 +264,46 @@ Ne yapmak istiyorsun?`;
         else this.renderPlayerBubble(m.text);
       });
     } else {
-      this.addDMMessage(`Yeniden hoş geldin, **${this.character.name}**! Maceran kaldığı yerden devam ediyor. Etrafını süzüyorsun... Nereye gitmek istersin?`);
+      this.addDMMessage(`Yeniden hoş geldin, **${this.character.name}**! Maceran kaldığı yerden devam ediyor. Nereye gitmek istersin?`);
     }
   },
 
-  // Üst Barı Güncelle
   updateTopBar() {
     if (!this.character) return;
     const c = this.character;
 
-    document.getElementById('adv-name').textContent = c.name;
-    document.getElementById('adv-class').textContent = `${c.raceName || ''} ${c.className || ''}`;
-    document.getElementById('adv-ac').textContent = `🛡️ ${c.ac || 10}`;
-    document.getElementById('adv-level').textContent = `⭐ Lv ${c.level || 1}`;
-    document.getElementById('adv-xp').textContent = `✨ ${c.xp || 0} XP`;
+    const nameEl = document.getElementById('adv-name');
+    const classEl = document.getElementById('adv-class');
+    const acEl = document.getElementById('adv-ac');
+    const lvlEl = document.getElementById('adv-level');
+    const xpEl = document.getElementById('adv-xp');
+
+    if (nameEl) nameEl.textContent = c.name;
+    if (classEl) classEl.textContent = `${c.raceName || ''} ${c.className || ''}`;
+    if (acEl) acEl.textContent = `🛡️ ${c.ac || 10}`;
+    if (lvlEl) lvlEl.textContent = `⭐ Lv ${c.level || 1}`;
+    if (xpEl) xpEl.textContent = `✨ ${c.xp || 0}`;
 
     const hpText = `${Math.max(0, c.hp)}/${c.maxHp}`;
-    document.getElementById('adv-hp-text').textContent = hpText;
-    const hpPct = Math.max(0, Math.min(100, (c.hp / c.maxHp) * 100));
-    document.getElementById('adv-hp-fill').style.width = `${hpPct}%`;
+    const hpTextEl = document.getElementById('adv-hp-text');
+    if (hpTextEl) hpTextEl.textContent = hpText;
+
+    const hpFill = document.getElementById('adv-hp-fill');
+    if (hpFill) {
+      const hpPct = Math.max(0, Math.min(100, (c.hp / c.maxHp) * 100));
+      hpFill.style.width = `${hpPct}%`;
+    }
 
     const portraitEl = document.getElementById('adv-portrait');
-    if (c.portrait) {
-      portraitEl.innerHTML = `<img src="${c.portrait}" alt="${c.name}">`;
-    } else {
-      portraitEl.innerHTML = '🗡️';
+    if (portraitEl) {
+      portraitEl.innerHTML = c.portrait ? `<img src="${c.portrait}" alt="${c.name}">` : '🗡️';
     }
   },
 
-  // Yan Paneli Render Et
   renderSidebar() {
     if (!this.character) return;
     const c = this.character;
 
-    // Statlar
     const statsDiv = document.getElementById('sidebar-stats');
     if (statsDiv) {
       statsDiv.innerHTML = Object.entries(Rules.abilities).map(([key, meta]) => {
@@ -251,7 +318,6 @@ Ne yapmak istiyorsun?`;
       }).join('');
     }
 
-    // Envanter
     const invDiv = document.getElementById('sidebar-inventory');
     if (invDiv) {
       invDiv.innerHTML = (c.inventory || []).map(item => `
@@ -263,7 +329,6 @@ Ne yapmak istiyorsun?`;
       `).join('') || '<p class="text-muted" style="font-size:12px">Çanta boş</p>';
     }
 
-    // Büyüler
     const spellsDiv = document.getElementById('sidebar-spells');
     if (spellsDiv) {
       if (c.spells && c.spells.length > 0) {
@@ -282,21 +347,7 @@ Ne yapmak istiyorsun?`;
     }
   },
 
-  // Yan Panel Toggle
-  toggleCharSheet() {
-    const sidebar = document.getElementById('adventure-sidebar');
-    if (sidebar) {
-      const isVisible = sidebar.style.display !== 'none';
-      sidebar.style.display = isVisible ? 'none' : 'block';
-      sidebar.classList.toggle('open', !isVisible);
-    }
-  },
-
-  toggleInventory() {
-    this.toggleCharSheet();
-  },
-
-  // Oyuncudan Eylem Gönder
+  // Eylem Gönder
   async sendAction() {
     const input = document.getElementById('player-input');
     const actionText = input.value.trim();
@@ -304,43 +355,66 @@ Ne yapmak istiyorsun?`;
 
     input.value = '';
 
-    // Oyuncu mesajını ekrana bas
+    // Çok oyunculu kontrol
+    if (Multiplayer.peer && !Multiplayer.isHost) {
+      // Client isek Host'a ilet
+      this.addPlayerMessage(actionText);
+      Multiplayer.sendToHost({
+        type: 'ACTION_TRIGGER',
+        playerName: this.character.name,
+        text: actionText
+      });
+      return;
+    }
+
     this.addPlayerMessage(actionText);
 
-    // Eğer savaş modundaysa veya savaş tetikleyen bir kelime varsa
+    // Host veya tek oyunculu ise AI çalıştır
+    if (Multiplayer.isHost) {
+      Multiplayer.broadcast({
+        type: 'CHAT_MESSAGE',
+        playerName: this.character.name,
+        text: actionText
+      });
+    }
+
     if (!Combat.inCombat && /saldır|dövüş|savaş|atak|kılıç çek/i.test(actionText)) {
       Combat.startCombat(['goblin']);
       return;
     }
 
-    // AI DM'den yanıt bekle
     this.showTypingIndicator();
     try {
       const dmReply = await AIEngine.sendMessage(this.history, actionText, this.character);
       this.hideTypingIndicator();
       this.addDMMessage(dmReply);
+
+      // Çok oyunculuda herkese yay
+      if (Multiplayer.isHost) {
+        Multiplayer.broadcast({ type: 'DM_MESSAGE', text: dmReply });
+      }
+
       this.saveCurrentCampaign();
     } catch (err) {
       this.hideTypingIndicator();
-      this.addSystemMessage(`⚠️ <strong>DM Bağlantı Sorunu:</strong> ${err.message}`);
+      this.addSystemMessage(`⚠️ <strong>DM Hatası:</strong> ${err.message}`);
     }
   },
 
-  // Otomatik Prompt Gönder (savaş sonu vb.)
-  async sendAutoPromptToAI(promptText) {
+  async sendActionForParty(playerName, actionText) {
     this.showTypingIndicator();
     try {
-      const reply = await AIEngine.sendMessage(this.history, promptText, this.character);
+      const dmReply = await AIEngine.sendMessage(this.history, `[${playerName}]: ${actionText}`, this.character);
       this.hideTypingIndicator();
-      this.addDMMessage(reply);
+      this.addDMMessage(dmReply);
+      Multiplayer.broadcast({ type: 'DM_MESSAGE', text: dmReply });
       this.saveCurrentCampaign();
     } catch (err) {
       this.hideTypingIndicator();
-      this.addSystemMessage(`⚠️ ${err.message}`);
+      this.addSystemMessage(`⚠️ <strong>DM Hatası:</strong> ${err.message}`);
     }
   },
 
-  // Hızlı Eylemler (Quick Actions)
   quickAction(type) {
     const input = document.getElementById('player-input');
     switch (type) {
@@ -382,7 +456,6 @@ Ne yapmak istiyorsun?`;
     }
   },
 
-  // Zar Paneli
   showDicePanel() {
     document.getElementById('dice-overlay').style.display = 'flex';
   },
@@ -397,11 +470,22 @@ Ne yapmak istiyorsun?`;
     Dice.showRollAnimation(sides, val, 'dice-result');
     Dice.renderHistory('dice-history');
 
-    // Hikaye akışına da ufak bir zar bildirimi ekle
-    this.addSystemMessage(`🎲 <strong>Zar Atıldı:</strong> d${sides} sonucu: <span class="inline-dice ${val === 20 ? 'crit' : val === 1 ? 'fumble' : ''}">${val}</span>`);
+    const msg = `🎲 <strong>${this.character?.name || 'Oyuncu'}</strong> zar attı: d${sides} sonucu: <span class="inline-dice ${val === 20 ? 'crit' : val === 1 ? 'fumble' : ''}">${val}</span>`;
+    this.addSystemMessage(msg);
+
+    // Çok oyunculu eşitleme
+    if (Multiplayer.peer) {
+      const payload = {
+        type: 'DICE_ROLL',
+        playerName: this.character.name,
+        label: `d${sides}`,
+        val: val
+      };
+      if (Multiplayer.isHost) Multiplayer.broadcast(payload);
+      else Multiplayer.sendToHost(payload);
+    }
   },
 
-  // Mesaj Ekleme Yardımcıları
   addDMMessage(text) {
     this.history.push({ role: 'dm', text });
     this.renderDMBubble(text);
@@ -427,7 +511,6 @@ Ne yapmak istiyorsun?`;
     if (!container) return;
     const msg = document.createElement('div');
     msg.className = 'message message-dm';
-    // Basit markdown biçimlendirme (kalın, italik, satır başları)
     const formatted = text
       .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
       .replace(/\*(.*?)\*/g, '<em>$1</em>')
@@ -458,7 +541,7 @@ Ne yapmak istiyorsun?`;
       <div class="typing-dot"></div>
       <div class="typing-dot"></div>
       <div class="typing-dot"></div>
-      <span style="font-size:12px;color:var(--text-muted);margin-left:6px">Dungeon Master düşünüyor...</span>
+      <span style="font-size:12px;color:var(--text-muted);margin-left:6px">Dungeon Master yazıyor...</span>
     `;
     container.appendChild(indicator);
     this.scrollToBottom();
@@ -489,11 +572,9 @@ Ne yapmak istiyorsun?`;
   }
 };
 
-// Sayfa yüklendiğinde başlat
 window.addEventListener('DOMContentLoaded', () => {
   App.init();
 
-  // Enter tuşuyla aksiyon gönderme (Shift+Enter yeni satır)
   const inputEl = document.getElementById('player-input');
   if (inputEl) {
     inputEl.addEventListener('keydown', (e) => {
